@@ -13,8 +13,7 @@ module.exports = {
       max_memory_restart: '512M',
       env: {
         NODE_ENV: 'production',
-        // PORT: ubah ke nomor port yang tersedia di server Anda
-        // Cek port tersedia dengan: ss -tlnp | grep LISTEN
+        // Port 3001 dikonfirmasi tersedia di VPS (3003 sudah dipakai app lain)
         PORT: 3001,
       },
     },
