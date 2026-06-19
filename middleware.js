@@ -13,7 +13,9 @@ export async function middleware(request) {
   const session = await verifySessionToken(token);
 
   if (!session) {
-    const loginUrl = new URL('/admin/login', request.url);
+    // Pakai nextUrl.clone() agar basePath (/presensi) ikut terbawa di redirect
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = '/admin/login';
     loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
   }
