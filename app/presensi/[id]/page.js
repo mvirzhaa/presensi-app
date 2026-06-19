@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import SignaturePad from '@/components/SignaturePad';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useLanguage } from '@/components/LanguageProvider';
+import { apiUrl } from '@/lib/api';
 
 export default function PresensiPage() {
   const { id } = useParams();
@@ -28,7 +29,7 @@ export default function PresensiPage() {
 
   async function loadEvent() {
     try {
-      const res = await fetch(`/api/events/${id}`);
+      const res = await fetch(apiUrl(`/api/events/${id}`));
       const json = await res.json();
       if (json.success) {
         setEvent(json.data);
@@ -80,7 +81,7 @@ export default function PresensiPage() {
     setSubmitting(true);
     try {
       const signature = sigRef.current.toDataURL();
-      const res = await fetch(`/api/events/${id}/participants`, {
+      const res = await fetch(apiUrl(`/api/events/${id}/participants`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

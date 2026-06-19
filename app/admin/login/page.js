@@ -5,6 +5,7 @@ import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/components/LanguageProvider';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { apiUrl } from '@/lib/api';
 
 function LoginForm() {
   const { dict } = useLanguage();
@@ -25,7 +26,7 @@ function LoginForm() {
     setError('');
     setSubmitting(true);
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(apiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),

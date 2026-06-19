@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/components/LanguageProvider';
 import AdminHeaderBar from '@/components/AdminHeaderBar';
+import { apiUrl } from '@/lib/api';
 
 export default function EventDetailPage() {
   const { id } = useParams();
@@ -35,7 +36,7 @@ export default function EventDetailPage() {
   }
 
   async function loadEvent() {
-    const res = await fetch(`/api/events/${id}`);
+    const res = await fetch(apiUrl(`/api/events/${id}`));
     if (res.status === 401) {
       router.push('/admin/login');
       return;
@@ -45,7 +46,7 @@ export default function EventDetailPage() {
   }
 
   async function loadParticipants() {
-    const res = await fetch(`/api/events/${id}/participants`);
+    const res = await fetch(apiUrl(`/api/events/${id}/participants`));
     if (res.status === 401) {
       router.push('/admin/login');
       return;
@@ -58,7 +59,7 @@ export default function EventDetailPage() {
     if (!event) return;
     setTogglingLocation(true);
     try {
-      const res = await fetch(`/api/events/${id}`, {
+      const res = await fetch(apiUrl(`/api/events/${id}`), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ require_location: !event.require_location }),
@@ -127,7 +128,7 @@ export default function EventDetailPage() {
             </div>
 
             <a
-              href={`/api/events/${id}/export`}
+              href={apiUrl(`/api/events/${id}/export`)}
               className="inline-block mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 transition"
             >
               {t.exportPdf}
@@ -137,7 +138,7 @@ export default function EventDetailPage() {
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center justify-center">
             <p className="text-sm text-slate-500 mb-3">{t.qrTitle}</p>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`/api/events/${id}/qrcode`} alt="QR" className="w-48 h-48" />
+            <img src={apiUrl(`/api/events/${id}/qrcode`)} alt="QR" className="w-48 h-48" />
             <p className="text-xs text-slate-400 mt-3 text-center">{t.qrCaption}</p>
           </div>
         </div>

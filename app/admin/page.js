@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/components/LanguageProvider';
 import AdminHeaderBar from '@/components/AdminHeaderBar';
+import { apiUrl } from '@/lib/api';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -31,7 +32,7 @@ export default function AdminPage() {
   async function loadEvents() {
     setLoading(true);
     try {
-      const res = await fetch('/api/events');
+      const res = await fetch(apiUrl('/api/events'));
       if (res.status === 401) {
         router.push('/admin/login');
         return;
@@ -55,7 +56,7 @@ export default function AdminPage() {
     setSubmitting(true);
     setError('');
     try {
-      const res = await fetch('/api/events', {
+      const res = await fetch(apiUrl('/api/events'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),

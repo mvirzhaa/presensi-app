@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useLanguage } from '@/components/LanguageProvider';
+import { apiUrl } from '@/lib/api';
 
 export default function AdminHeaderBar() {
   const router = useRouter();
@@ -13,7 +14,7 @@ export default function AdminHeaderBar() {
   async function handleLogout() {
     setLoggingOut(true);
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch(apiUrl('/api/auth/logout'), { method: 'POST' });
     } finally {
       router.push('/admin/login');
       router.refresh();
