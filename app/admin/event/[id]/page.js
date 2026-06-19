@@ -12,7 +12,7 @@ export default function EventDetailPage() {
   const [presensiUrl, setPresensiUrl] = useState('');
 
   useEffect(() => {
-    setPresensiUrl(`${window.location.origin}/presensi/${id}`);
+    setPresensiUrl(`${window.location.origin}/presensi/scan/${id}`);
     loadAll();
 
     // Auto-refresh daftar peserta tiap 10 detik agar admin lihat update real-time
