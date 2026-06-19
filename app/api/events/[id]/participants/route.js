@@ -1,17 +1,33 @@
 import { NextResponse } from 'next/server';
 import { getPool } from '@/lib/db';
+import { getSessionFromRequest } from '@/lib/auth';
 
-// GET /api/events/:id/participants -> daftar peserta yang sudah presensi
+// Param [id] di sini adalah PUBLIC_ID (acak), bukan id auto-increment.
+// Setiap query selalu resolve public_id -> id internal terlebih dahulu.
+
+// GET /api/events/:publicId/participants -> daftar peserta (KHUSUS ADMIN, wajib login)
+// Berisi data pribadi peserta + titik lokasi, sehingga harus diproteksi.
 export async function GET(request, { params }) {
+  const session = await getSessionFromRequest(request);
+  if (!session) {
+    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { id } = params;
     const pool = getPool();
+
+    const [eventRows] = await pool.query('SELECT id FROM events WHERE public_id = ?', [id]);
+    if (eventRows.length === 0) {
+      return NextResponse.json({ success: false, message: 'Event tidak ditemukan' }, { status: 404 });
+    }
+
     const [rows] = await pool.query(
       `SELECT id, nama, asal_instansi, jabatan, latitude, longitude, presensi_at
        FROM participants
        WHERE event_id = ?
        ORDER BY presensi_at ASC`,
-      [id]
+      [eventRows[0].id]
     );
     return NextResponse.json({ success: true, data: rows });
   } catch (err) {
@@ -23,7 +39,7 @@ export async function GET(request, { params }) {
   }
 }
 
-// POST /api/events/:id/participants -> peserta mengisi presensi
+// POST /api/events/:publicId/participants -> peserta mengisi presensi (PUBLIK, diakses lewat QR)
 export async function POST(request, { params }) {
   try {
     const { id } = params;
@@ -39,7 +55,7 @@ export async function POST(request, { params }) {
 
     const pool = getPool();
 
-    const [eventRows] = await pool.query('SELECT id FROM events WHERE id = ?', [id]);
+    const [eventRows] = await pool.query('SELECT id FROM events WHERE public_id = ?', [id]);
     if (eventRows.length === 0) {
       return NextResponse.json(
         { success: false, message: 'Event tidak ditemukan' },
@@ -48,12 +64,12 @@ export async function POST(request, { params }) {
     }
 
     // Tanggal & jam presensi otomatis diambil dari waktu server (NOW())
-    // Latitude / longitude diambil dari browser peserta saat mengisi form
+    // Latitude / longitude diambil dari browser peserta saat mengisi form (jika event mewajibkannya)
     const [result] = await pool.query(
       `INSERT INTO participants
         (event_id, nama, asal_instansi, jabatan, signature, latitude, longitude, presensi_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [id, nama, asal_instansi, jabatan, signature, latitude ?? null, longitude ?? null]
+      [eventRows[0].id, nama, asal_instansi, jabatan, signature, latitude ?? null, longitude ?? null]
     );
 
     return NextResponse.json(

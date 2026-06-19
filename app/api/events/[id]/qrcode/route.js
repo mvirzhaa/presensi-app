@@ -1,10 +1,27 @@
 import QRCode from 'qrcode';
+import { getPool } from '@/lib/db';
+import { getSessionFromRequest } from '@/lib/auth';
 
-// GET /api/events/:id/qrcode -> mengembalikan gambar PNG QR Code
-// yang berisi link ke halaman presensi publik /presensi/:id
+// GET /api/events/:publicId/qrcode -> gambar PNG QR Code berisi link ke
+// halaman presensi publik /presensi/:publicId.
+// Param [id] adalah PUBLIC_ID acak. Diproteksi karena hanya dipakai di
+// halaman admin (request <img> dari halaman admin otomatis menyertakan
+// cookie session yang sama).
 export async function GET(request, { params }) {
+  const session = await getSessionFromRequest(request);
+  if (!session) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+
   try {
     const { id } = params;
+
+    const pool = getPool();
+    const [rows] = await pool.query('SELECT id FROM events WHERE public_id = ?', [id]);
+    if (rows.length === 0) {
+      return new Response('Event tidak ditemukan', { status: 404 });
+    }
+
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
     const url = `${baseUrl}/presensi/${id}`;
 
