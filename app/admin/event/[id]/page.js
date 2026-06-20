@@ -109,6 +109,7 @@ export default function EventDetailPage() {
                 month: 'long',
                 year: 'numeric',
               })}
+              {event.waktu_event ? ` · ${event.waktu_event.slice(0, 5)}` : ''}
             </p>
             <p className="text-sm text-slate-500">{t.locationLabel}: {event.lokasi_event}</p>
             <p className="text-sm text-slate-500">{t.picLabel}: {event.pic_event}</p>

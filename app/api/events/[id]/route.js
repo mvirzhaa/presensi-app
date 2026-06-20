@@ -6,7 +6,7 @@ import { getSessionFromRequest } from '@/lib/auth';
 // (string acak), BUKAN id auto-increment internal. Ini disengaja agar
 // ID di URL tidak bisa ditebak/diutak-atik oleh pengguna.
 const PUBLIC_FIELDS = `
-  public_id, nama_event, tanggal_event, lokasi_event, pic_event,
+  public_id, nama_event, tanggal_event, waktu_event, lokasi_event, pic_event,
   require_location, created_at
 `;
 
@@ -74,6 +74,10 @@ export async function PATCH(request, { params }) {
     if (typeof body.tanggal_event === 'string' && body.tanggal_event.trim()) {
       fields.push('tanggal_event = ?');
       values.push(body.tanggal_event.trim());
+    }
+    if (typeof body.waktu_event === 'string') {
+      fields.push('waktu_event = ?');
+      values.push(body.waktu_event.trim() ? body.waktu_event.trim() : null);
     }
 
     if (fields.length === 0) {

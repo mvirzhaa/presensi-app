@@ -1,10 +1,10 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/components/LanguageProvider';
 import AdminHeaderBar from '@/components/AdminHeaderBar';
+import EventsTable from '@/components/EventsTable';
 import { apiUrl } from '@/lib/api';
 
 export default function AdminPage() {
@@ -19,6 +19,7 @@ export default function AdminPage() {
   const [form, setForm] = useState({
     nama_event: '',
     tanggal_event: '',
+    waktu_event: '',
     lokasi_event: '',
     pic_event: '',
     require_location: true,
@@ -70,7 +71,7 @@ export default function AdminPage() {
         setError(json.message || t.errorGeneric);
         return;
       }
-      setForm({ nama_event: '', tanggal_event: '', lokasi_event: '', pic_event: '', require_location: true });
+      setForm({ nama_event: '', tanggal_event: '', waktu_event: '', lokasi_event: '', pic_event: '', require_location: true });
       await loadEvents();
     } catch {
       setError(t.errorGeneric);
@@ -81,7 +82,7 @@ export default function AdminPage() {
 
   return (
     <main className="min-h-screen bg-slate-50 py-8 sm:py-10 px-4">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-6xl mx-auto space-y-8">
         <AdminHeaderBar />
 
         <div>
@@ -92,7 +93,7 @@ export default function AdminPage() {
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
           <h2 className="font-semibold text-slate-700 mb-4">{t.createTitle}</h2>
           <form onSubmit={handleSubmit} className="grid sm:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 sm:col-span-2">
               <label className="text-sm text-slate-600">{t.nameLabel}</label>
               <input
                 name="nama_event"
@@ -110,6 +111,16 @@ export default function AdminPage() {
                 value={form.tanggal_event}
                 onChange={handleChange}
                 required
+                className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-slate-600">{t.timeLabel}</label>
+              <input
+                type="time"
+                name="waktu_event"
+                value={form.waktu_event}
+                onChange={handleChange}
                 className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
@@ -155,7 +166,7 @@ export default function AdminPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50 transition"
+                className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50 transition"
               >
                 {submitting ? t.submitting : t.submit}
               </button>
@@ -167,33 +178,8 @@ export default function AdminPage() {
           <h2 className="font-semibold text-slate-700 mb-4">{t.listTitle}</h2>
           {loading ? (
             <p className="text-sm text-slate-400">{dict.common.loading}</p>
-          ) : events.length === 0 ? (
-            <p className="text-sm text-slate-400">{t.empty}</p>
           ) : (
-            <div className="divide-y divide-slate-100">
-              {events.map((ev) => (
-                <Link
-                  key={ev.public_id}
-                  href={`/admin/event/${ev.public_id}`}
-                  className="flex items-center justify-between py-3 px-2 -mx-2 rounded-lg hover:bg-slate-50 transition"
-                >
-                  <div>
-                    <p className="font-medium text-slate-800">{ev.nama_event}</p>
-                    <p className="text-xs text-slate-500">
-                      {ev.lokasi_event} · PIC: {ev.pic_event}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-slate-500">
-                      {new Date(ev.tanggal_event).toLocaleDateString()}
-                    </p>
-                    <p className="text-xs text-indigo-600 font-medium">
-                      {ev.jumlah_peserta} {t.participantsSuffix}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
+            <EventsTable events={events} />
           )}
         </div>
       </div>

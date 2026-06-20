@@ -6,7 +6,7 @@ import { generatePublicId } from '@/lib/id';
 // Kolom yang aman ditampilkan ke client (ID internal/auto-increment
 // sengaja TIDAK pernah dikirim ke browser).
 const PUBLIC_FIELDS = `
-  public_id, nama_event, tanggal_event, lokasi_event, pic_event,
+  public_id, nama_event, tanggal_event, waktu_event, lokasi_event, pic_event,
   require_location, created_at
 `;
 
@@ -44,7 +44,7 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { nama_event, tanggal_event, lokasi_event, pic_event, require_location } = body;
+    const { nama_event, tanggal_event, waktu_event, lokasi_event, pic_event, require_location } = body;
 
     if (!nama_event || !tanggal_event || !lokasi_event || !pic_event) {
       return NextResponse.json(
@@ -56,15 +56,18 @@ export async function POST(request) {
     // Default mewajibkan lokasi kecuali admin secara eksplisit mematikannya
     const requireLocationValue = require_location === false ? 0 : 1;
 
+    // Waktu pelaksanaan bersifat opsional
+    const waktuEventValue = waktu_event && waktu_event.trim() ? waktu_event.trim() : null;
+
     // ID publik acak (anti-tebak) yang dipakai di URL/QR Code, BUKAN
     // ID auto-increment dari database.
     const publicId = generatePublicId();
 
     const pool = getPool();
     await pool.query(
-      `INSERT INTO events (public_id, nama_event, tanggal_event, lokasi_event, pic_event, require_location)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [publicId, nama_event, tanggal_event, lokasi_event, pic_event, requireLocationValue]
+      `INSERT INTO events (public_id, nama_event, tanggal_event, waktu_event, lokasi_event, pic_event, require_location)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [publicId, nama_event, tanggal_event, waktuEventValue, lokasi_event, pic_event, requireLocationValue]
     );
 
     return NextResponse.json(

@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS events (
   public_id CHAR(32) NOT NULL,                 -- ID acak yang dipakai di URL/QR Code (tidak bisa ditebak)
   nama_event   VARCHAR(255) NOT NULL,
   tanggal_event DATE NOT NULL,
+  waktu_event  TIME NULL,                     -- jam pelaksanaan event (opsional)
   lokasi_event VARCHAR(255) NOT NULL,
   pic_event    VARCHAR(255) NOT NULL,
   require_location TINYINT(1) NOT NULL DEFAULT 1, -- 1 = wajibkan deteksi lokasi peserta, 0 = nonaktif
@@ -54,6 +55,11 @@ CREATE INDEX idx_participants_event_id ON participants(event_id);
 --     WHERE public_id IS NULL;
 --   ALTER TABLE events MODIFY public_id CHAR(32) NOT NULL;
 --   ALTER TABLE events ADD UNIQUE KEY uq_events_public_id (public_id);
+--
+-- Jika database juga belum memiliki kolom waktu_event (jam pelaksanaan event),
+-- jalankan migrasi berikut:
+--
+--   ALTER TABLE events ADD COLUMN waktu_event TIME NULL;
 --
 -- PENTING: setelah migrasi ini, QR Code/link presensi LAMA yang masih
 -- memakai angka ID (mis. /presensi/1) tidak akan berfungsi lagi.
