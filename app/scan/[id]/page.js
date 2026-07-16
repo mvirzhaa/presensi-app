@@ -61,7 +61,7 @@ export default function PresensiPage() {
     setError('');
 
     if (sigRef.current.isEmpty()) {
-      setError('Mohon butuhkan tanda tangan terlebih dahulu');
+      setError('Mohon bubuhkan tanda tangan terlebih dahulu');
       return;
     }
 
@@ -150,13 +150,14 @@ export default function PresensiPage() {
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-sm text-slate-600">Jabatan</label>
-            <input
+            <label className="text-sm text-slate-600">Kesan</label>
+            <textarea
               name="jabatan"
               value={form.jabatan}
               onChange={handleChange}
               required
-              className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              rows={3}
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
             />
           </div>
 
