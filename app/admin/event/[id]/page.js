@@ -20,7 +20,8 @@ export default function EventDetailPage() {
   const [togglingLocation, setTogglingLocation] = useState(false);
 
   useEffect(() => {
-    setPresensiUrl(`${window.location.origin}/presensi/${id}`);
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
+    setPresensiUrl(`${baseUrl}/presensi/${id}`);
     loadAll();
 
     // Auto-refresh daftar peserta tiap 10 detik agar admin lihat update real-time
