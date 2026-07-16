@@ -61,7 +61,7 @@ export default function PresensiPage() {
     setError('');
 
     if (sigRef.current.isEmpty()) {
-      setError('Mohon bubuhkan tanda tangan terlebih dahulu');
+      setError('Mohon butuhkan tanda tangan terlebih dahulu');
       return;
     }
 
