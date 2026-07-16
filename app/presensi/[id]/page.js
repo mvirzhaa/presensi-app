@@ -178,12 +178,13 @@ export default function PresensiPage() {
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-sm text-slate-600">{t.positionLabel}</label>
-              <input
+              <textarea
                 name="jabatan"
                 value={form.jabatan}
                 onChange={handleChange}
                 required
-                className="border border-slate-300 rounded-lg px-3 py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                rows={3}
+                className="border border-slate-300 rounded-lg px-3 py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
               />
             </div>
 
