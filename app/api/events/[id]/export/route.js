@@ -26,8 +26,14 @@ export async function GET(request, { params }) {
       [event.id]
     );
 
-    const pdfBytes = await buildAttendancePdf(event, participants);
+    const [photos] = await pool.query(
+      'SELECT id, file_name, file_path, original_name, mime_type FROM event_files WHERE event_id = ? AND file_type = "photo" ORDER BY id ASC',
+      [event.id]
+    );
+
+    const pdfBytes = await buildAttendancePdf(event, participants, photos);
     const safeFileName = event.nama_event.replace(/[^a-zA-Z0-9]+/g, '_');
+
 
     return new NextResponse(Buffer.from(pdfBytes), {
       status: 200,
