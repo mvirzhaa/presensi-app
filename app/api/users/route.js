@@ -62,9 +62,11 @@ export async function POST(request) {
 
     const cleanUsername = username.trim().toLowerCase();
     const cleanNama = nama.trim();
-    const validRole = role === 'superadmin' ? 'superadmin' : 'admin';
+    // User baru yang dibuat oleh Super Admin selalu bertindak sebagai Operator
+    const validRole = 'admin';
 
     const pool = getPool();
+
 
     // Cek duplikasi username
     const [existing] = await pool.query('SELECT id FROM users WHERE username = ?', [cleanUsername]);

@@ -325,15 +325,14 @@ export default function UsersManagementPage() {
 
                 <div>
                   <label className="text-xs font-medium text-slate-600 block mb-1">{t.roleLabel}</label>
-                  <select
-                    value={addForm.role}
-                    onChange={(e) => setAddForm({ ...addForm, role: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white"
-                  >
-                    <option value="admin">{t.roleAdmin}</option>
-                    <option value="superadmin">{t.roleSuperadmin}</option>
-                  </select>
+                  <div className="w-full border border-slate-200 bg-slate-50 rounded-lg px-3 py-2 text-sm text-slate-700 flex items-center justify-between">
+                    <span>{t.roleAdmin}</span>
+                    <span className="text-[10px] bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">
+                      Operator
+                    </span>
+                  </div>
                 </div>
+
 
                 <div className="pt-3 flex justify-end gap-2">
                   <button
@@ -402,16 +401,20 @@ export default function UsersManagementPage() {
 
                 <div>
                   <label className="text-xs font-medium text-slate-600 block mb-1">{t.roleLabel}</label>
-                  <select
-                    value={editForm.role}
-                    disabled={currentUser?.id === editForm.id}
-                    onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white disabled:bg-slate-50"
-                  >
-                    <option value="admin">{t.roleAdmin}</option>
-                    <option value="superadmin">{t.roleSuperadmin}</option>
-                  </select>
+                  <div className="w-full border border-slate-200 bg-slate-50 rounded-lg px-3 py-2 text-sm text-slate-700 flex items-center justify-between">
+                    <span>{editForm.role === 'superadmin' ? dict.adminNav.roleSuperadmin : t.roleAdmin}</span>
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                        editForm.role === 'superadmin'
+                          ? 'bg-purple-100 text-purple-700'
+                          : 'bg-blue-100 text-blue-700'
+                      }`}
+                    >
+                      {editForm.role === 'superadmin' ? 'Super Admin' : 'Operator'}
+                    </span>
+                  </div>
                 </div>
+
 
                 <div>
                   <label className="text-xs font-medium text-slate-600 block mb-1">{t.statusLabel}</label>
