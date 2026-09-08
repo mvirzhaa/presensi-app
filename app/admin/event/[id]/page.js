@@ -218,8 +218,6 @@ export default function EventDetailPage() {
   const documentFiles = files.filter((f) => f.file_type === 'document');
   const photoFiles = files.filter((f) => f.file_type === 'photo');
 
-  // Subpath prefix untuk asset static jika ada
-  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
   return (
     <main className="min-h-screen bg-slate-50 py-8 sm:py-10 px-4">
@@ -393,7 +391,7 @@ export default function EventDetailPage() {
 
                   <div className="flex items-center gap-2 shrink-0">
                     <a
-                      href={`${basePath}${f.file_path}`}
+                      href={apiUrl(`/api/events/${id}/files/${f.id}?download=1`)}
                       target="_blank"
                       rel="noreferrer"
                       download={f.original_name}
@@ -451,7 +449,7 @@ export default function EventDetailPage() {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {photoFiles.map((p) => {
-                const photoUrl = `${basePath}${p.file_path}`;
+                const photoUrl = apiUrl(`/api/events/${id}/files/${p.id}`);
                 return (
                   <div
                     key={p.id}
@@ -486,6 +484,7 @@ export default function EventDetailPage() {
             </div>
           )}
         </div>
+
 
         {/* Modal Lightbox Foto */}
         {activePreviewImage && (
