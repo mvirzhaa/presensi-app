@@ -1,49 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getPool } from '@/lib/db';
+import { getMimeType } from '@/lib/storage';
 import fs from 'fs';
 import path from 'path';
 
-// Helper content-type fallback jika mime_type tidak tersimpan
-function getMimeType(fileName, storedMime) {
-  if (storedMime && storedMime !== 'application/octet-stream') return storedMime;
-  const ext = path.extname(fileName).toLowerCase();
-  switch (ext) {
-    case '.jpg':
-    case '.jpeg':
-      return 'image/jpeg';
-    case '.png':
-      return 'image/png';
-    case '.gif':
-      return 'image/gif';
-    case '.webp':
-      return 'image/webp';
-    case '.pdf':
-      return 'application/pdf';
-    case '.doc':
-      return 'application/msword';
-    case '.docx':
-      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-    case '.xls':
-      return 'application/vnd.ms-excel';
-    case '.xlsx':
-      return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-    case '.ppt':
-      return 'application/vnd.ms-powerpoint';
-    case '.pptx':
-      return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-    case '.zip':
-      return 'application/zip';
-    case '.rar':
-      return 'application/x-rar-compressed';
-    case '.txt':
-      return 'text/plain; charset=utf-8';
-    default:
-      return 'application/octet-stream';
-  }
-}
-
 // GET /api/events/:publicId/files/:fileId -> Melayani stream file (dokumen atau foto)
-// Mengatasi masalah basePath subpath (/presensi) dan Next.js static runtime limitations
 export async function GET(request, { params }) {
   try {
     const { id, fileId } = params;
@@ -69,10 +30,8 @@ export async function GET(request, { params }) {
     const fileRecord = files[0];
 
     // Cek keberadaan file fisik di disk
-    // Path bisa di public/uploads/events/<eventId>/<fileName> atau relative
     let fullPath = path.join(process.cwd(), 'public', fileRecord.file_path);
     if (!fs.existsSync(fullPath)) {
-      // Coba fallback direktori alternatif
       fullPath = path.join(process.cwd(), fileRecord.file_path);
     }
     if (!fs.existsSync(fullPath)) {
@@ -98,7 +57,7 @@ export async function GET(request, { params }) {
       },
     });
   } catch (err) {
-    console.error('Error serving file:', err);
+    console.error('Error streaming file:', err);
     return new NextResponse('Gagal memuat file: ' + err.message, { status: 500 });
   }
 }

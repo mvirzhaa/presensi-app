@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useLanguage } from '@/components/LanguageProvider';
 import QrModal from '@/components/QrModal';
 import { apiUrl } from '@/lib/api';
+import { formatTime, formatDate } from '@/lib/formatters';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
@@ -17,13 +18,6 @@ function SortIcon({ active, direction }) {
   );
 }
 
-function formatTime(value) {
-  if (!value) return null;
-  // mysql2 mengembalikan kolom TIME sebagai string "HH:MM:SS"
-  const parts = String(value).split(':');
-  if (parts.length < 2) return value;
-  return `${parts[0]}.${parts[1]}`;
-}
 
 export default function EventsTable({ events }) {
   const { dict, lang } = useLanguage();
@@ -195,8 +189,9 @@ export default function EventsTable({ events }) {
                       </Link>
                     </td>
                     <td className="py-2.5 pr-3 text-slate-600 whitespace-nowrap">
-                      {new Date(ev.tanggal_event).toLocaleDateString(dateLocale)}
+                      {formatDate(ev.tanggal_event, dateLocale)}
                     </td>
+
                     <td className="py-2.5 pr-3 text-slate-600 whitespace-nowrap">
                       {formatTime(ev.waktu_event) || t.noTime}
                     </td>
