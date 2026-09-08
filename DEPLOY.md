@@ -188,17 +188,27 @@ Buka browser dan akses:
 - ✅ `https://u-talent.uika-bogor.ac.id/presensi` → Halaman utama
 - ✅ `https://u-talent.uika-bogor.ac.id/presensi/admin` → Halaman Admin
 - ✅ Buat event baru → QR Code mengarah ke `https://u-talent.uika-bogor.ac.id/presensi/scan/{id}`
+- ✅ Halaman Kelola User → `https://u-talent.uika-bogor.ac.id/presensi/admin/users` (khusus Super Admin)
 
 ---
 
 ## Update Aplikasi di Kemudian Hari
 
-Jika ada perubahan kode di repositori:
+Jika ada perubahan kode di repositori (termasuk update fitur Super Admin & Uploads):
 
 ```bash
 cd /var/www/presensi-app
 git pull
 npm install
 npm run build
+
+# Pastikan folder uploads tersedia dan memiliki izin tulis
+mkdir -p public/uploads
+chmod -R 775 public/uploads
+
 pm2 restart presensi-app
 ```
+
+> **Catatan Migrasi Database:**  
+> Aplikasi sudah dilengkapi fungsi *auto-migration* otomatis saat server menyala pertama kali (membuat tabel `users`, `event_files`, serta kolom `user_id` & `notulensi` jika belum ada). Anda juga dapat menjalankan query migrasi di bagian bawah file `schema.sql` secara manual melalui MySQL client jika diinginkan.
+

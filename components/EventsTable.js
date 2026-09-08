@@ -38,6 +38,8 @@ export default function EventsTable({ events }) {
   const [page, setPage] = useState(1);
   const [qrEvent, setQrEvent] = useState(null);
 
+  const hasCreator = useMemo(() => events.some((e) => e.creator_nama), [events]);
+
   const locations = useMemo(
     () => Array.from(new Set(events.map((e) => e.lokasi_event).filter(Boolean))).sort(),
     [events]
@@ -56,7 +58,8 @@ export default function EventsTable({ events }) {
       return (
         ev.nama_event?.toLowerCase().includes(q) ||
         ev.lokasi_event?.toLowerCase().includes(q) ||
-        ev.pic_event?.toLowerCase().includes(q)
+        ev.pic_event?.toLowerCase().includes(q) ||
+        ev.creator_nama?.toLowerCase().includes(q)
       );
     });
   }, [events, search, filterLocation, filterPic]);
@@ -177,6 +180,7 @@ export default function EventsTable({ events }) {
                   <Th label={t.colTime} sortKeyName="waktu_event" />
                   <Th label={t.colLocation} sortKeyName="lokasi_event" />
                   <Th label={t.colPic} sortKeyName="pic_event" />
+                  {hasCreator && <Th label={t.colCreator} sortKeyName="creator_nama" />}
                   <Th label={t.colParticipants} sortKeyName="jumlah_peserta" className="text-right" />
                   <th className="py-2 pr-3 text-center">{t.colQr}</th>
                 </tr>
@@ -198,10 +202,17 @@ export default function EventsTable({ events }) {
                     </td>
                     <td className="py-2.5 pr-3 text-slate-600">{ev.lokasi_event}</td>
                     <td className="py-2.5 pr-3 text-slate-600">{ev.pic_event}</td>
+                    {hasCreator && (
+                      <td className="py-2.5 pr-3 text-slate-500 text-xs">
+                        <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-medium">
+                          {ev.creator_nama || ev.creator_username || '-'}
+                        </span>
+                      </td>
+                    )}
                     <td className="py-2.5 pr-3 text-right">
                       <span className="text-indigo-600 font-medium">{ev.jumlah_peserta}</span>
                     </td>
-                    <td className="py-2 pr-3">
+                    <td className="py-2.5 pr-3">
                       <button
                         onClick={() => setQrEvent(ev)}
                         className="block mx-auto w-10 h-10 rounded-md border border-slate-200 overflow-hidden hover:ring-2 hover:ring-indigo-300 transition"
