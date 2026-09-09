@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useLanguage } from '@/components/LanguageProvider';
+import ProfileModal from '@/components/profile/ProfileModal';
 import { apiUrl } from '@/lib/api';
 
 export default function AdminHeaderBar() {
@@ -15,6 +16,7 @@ export default function AdminHeaderBar() {
 
   const [user, setUser] = useState(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
     fetch(apiUrl('/api/auth/me'))
@@ -73,8 +75,14 @@ export default function AdminHeaderBar() {
 
       <div className="flex items-center gap-2 sm:gap-3 flex-wrap ml-auto">
         {user && (
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1">
-            <span className="font-medium text-slate-700 truncate max-w-[120px] sm:max-w-[180px]">
+          <button
+            type="button"
+            onClick={() => setIsProfileOpen(true)}
+            className="flex items-center gap-1.5 text-xs text-slate-700 bg-slate-50 hover:bg-slate-100 active:bg-slate-200 border border-slate-200 rounded-lg px-2.5 py-1.5 transition cursor-pointer group shadow-xs"
+            title="Klik untuk edit username & ganti password"
+          >
+            <span>👤</span>
+            <span className="font-semibold text-slate-800 group-hover:text-indigo-600 transition truncate max-w-[110px] sm:max-w-[160px]">
               {user.nama || user.username}
             </span>
             <span
@@ -86,7 +94,10 @@ export default function AdminHeaderBar() {
             >
               {user.role === 'superadmin' ? t.roleSuperadmin : t.roleAdmin}
             </span>
-          </div>
+            <span className="text-[11px] text-slate-400 group-hover:text-indigo-600 transition font-medium">
+              ⚙️
+            </span>
+          </button>
         )}
 
         <LanguageSwitcher />
@@ -94,11 +105,21 @@ export default function AdminHeaderBar() {
         <button
           onClick={handleLogout}
           disabled={loggingOut}
-          className="text-xs font-medium text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-200 rounded-lg px-2.5 py-1.5 transition disabled:opacity-50"
+          className="text-xs font-medium text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-200 rounded-lg px-2.5 py-1.5 transition disabled:opacity-50 cursor-pointer"
         >
           {t.logout}
         </button>
       </div>
+
+      <ProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        currentUser={user}
+        onProfileUpdated={(updatedUser) => {
+          setUser(updatedUser);
+        }}
+        dict={dict}
+      />
     </div>
   );
 }

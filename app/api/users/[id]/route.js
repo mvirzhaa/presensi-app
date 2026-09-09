@@ -27,6 +27,25 @@ export async function PATCH(request, { params }) {
     const updates = [];
     const values = [];
 
+    if (body.username && typeof body.username === 'string' && body.username.trim()) {
+      const newUsername = body.username.trim().toLowerCase();
+      if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(newUsername)) {
+        return NextResponse.json(
+          { success: false, message: 'Username harus 3-30 karakter (huruf, angka, _, -, .)' },
+          { status: 400 }
+        );
+      }
+      const [existing] = await pool.query('SELECT id FROM users WHERE username = ? AND id != ?', [newUsername, id]);
+      if (existing.length > 0) {
+        return NextResponse.json(
+          { success: false, message: 'Username sudah digunakan oleh akun lain' },
+          { status: 400 }
+        );
+      }
+      updates.push('username = ?');
+      values.push(newUsername);
+    }
+
     if (body.nama && typeof body.nama === 'string' && body.nama.trim()) {
       updates.push('nama = ?');
       values.push(body.nama.trim());

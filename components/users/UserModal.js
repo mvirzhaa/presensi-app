@@ -56,19 +56,19 @@ export default function UserModal({
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="text-xs font-medium text-slate-600 block mb-1">{t.usernameLabel}</label>
+            <label className="text-xs font-medium text-slate-600 block mb-1">
+              {t.usernameLabel} <span className="text-red-500">*</span>
+            </label>
             <input
-              required={!isEdit}
-              disabled={isEdit}
+              required
               value={form.username}
-              onChange={(e) => setForm({ ...form, username: e.target.value })}
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none ${
-                isEdit
-                  ? 'border-slate-200 bg-slate-50 text-slate-500 cursor-not-allowed'
-                  : 'border-slate-300 focus:ring-2 focus:ring-indigo-500'
-              }`}
+              onChange={(e) => setForm({ ...form, username: e.target.value.toLowerCase() })}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               placeholder="Contoh: panitia_ti"
             />
+            <p className="text-[11px] text-slate-400 mt-1">
+              Digunakan untuk login (huruf kecil, angka, atau strip/underscore).
+            </p>
           </div>
 
           <div>
