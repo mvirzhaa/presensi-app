@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/components/LanguageProvider';
 import AdminHeaderBar from '@/components/AdminHeaderBar';
 import EventsTable from '@/components/EventsTable';
+import LocationPicker from '@/components/LocationPicker';
 import { apiUrl } from '@/lib/api';
 
 export default function AdminPage() {
@@ -28,7 +29,6 @@ export default function AdminPage() {
     target_longitude: '',
     radius_meters: 50,
   });
-  const [gettingLoc, setGettingLoc] = useState(false);
 
   useEffect(() => {
     loadEvents();
@@ -55,29 +55,6 @@ export default function AdminPage() {
   function handleChange(e) {
     const { name, type, value, checked } = e.target;
     setForm({ ...form, [name]: type === 'checkbox' ? checked : value });
-  }
-
-  function getCurrentLocation() {
-    if (!navigator.geolocation) {
-      alert('Browser tidak mendukung deteksi lokasi');
-      return;
-    }
-    setGettingLoc(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setForm((prev) => ({
-          ...prev,
-          target_latitude: pos.coords.latitude.toFixed(7),
-          target_longitude: pos.coords.longitude.toFixed(7),
-        }));
-        setGettingLoc(false);
-      },
-      (err) => {
-        alert('Gagal mendeteksi lokasi GPS: ' + err.message);
-        setGettingLoc(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
   }
 
   async function handleSubmit(e) {
@@ -223,61 +200,14 @@ export default function AdminPage() {
               </div>
 
               {form.fix_location && (
-                <div className="pt-2 border-t border-slate-200/80 grid sm:grid-cols-3 gap-3">
-                  <div className="sm:col-span-3 flex items-center justify-between gap-2 flex-wrap">
-                    <span className="text-xs font-semibold text-slate-700">Titik Koordinat Lokasi Acara</span>
-                    <button
-                      type="button"
-                      onClick={getCurrentLocation}
-                      disabled={gettingLoc}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-xs font-medium transition disabled:opacity-50"
-                    >
-                      📍 {gettingLoc ? t.gettingLocation : t.getMyLocation}
-                    </button>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-slate-600 font-medium">{t.latitudeLabel}</label>
-                    <input
-                      type="number"
-                      step="any"
-                      name="target_latitude"
-                      placeholder="-6.5612345"
-                      value={form.target_latitude}
-                      onChange={handleChange}
-                      required={form.fix_location}
-                      className="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-slate-600 font-medium">{t.longitudeLabel}</label>
-                    <input
-                      type="number"
-                      step="any"
-                      name="target_longitude"
-                      placeholder="106.7812345"
-                      value={form.target_longitude}
-                      onChange={handleChange}
-                      required={form.fix_location}
-                      className="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-slate-600 font-medium">{t.radiusLabel}</label>
-                    <input
-                      type="number"
-                      min="5"
-                      max="50000"
-                      name="radius_meters"
-                      value={form.radius_meters}
-                      onChange={handleChange}
-                      required={form.fix_location}
-                      className="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                    <span className="text-[11px] text-slate-400">{t.radiusHint}</span>
-                  </div>
+                <div className="pt-3 border-t border-slate-200">
+                  <LocationPicker
+                    latitude={form.target_latitude}
+                    longitude={form.target_longitude}
+                    radius={form.radius_meters}
+                    defaultSearchQuery={form.lokasi_event}
+                    onChange={(updated) => setForm((prev) => ({ ...prev, ...updated }))}
+                  />
                 </div>
               )}
             </div>

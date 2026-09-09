@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { getGoogleMapsUrl } from '@/lib/geo';
+import LocationPicker from '@/components/LocationPicker';
 
 export default function LocationSettingCard({
   event,
@@ -15,12 +16,11 @@ export default function LocationSettingCard({
   const isFixed = !!event?.fix_location;
 
   const [isEditing, setIsEditing] = useState(false);
-  const [form, setForm] = useState({
+  const [pickerState, setPickerState] = useState({
     target_latitude: event?.target_latitude ?? '',
     target_longitude: event?.target_longitude ?? '',
     radius_meters: event?.radius_meters ?? 50,
   });
-  const [gettingGps, setGettingGps] = useState(false);
   const [saving, setSaving] = useState(false);
 
   async function handleToggleFixLocation() {
@@ -37,40 +37,19 @@ export default function LocationSettingCard({
     }
   }
 
-  function handleGetCurrentLocation() {
-    if (!navigator.geolocation) {
-      alert('Browser tidak mendukung akses lokasi');
-      return;
-    }
-    setGettingGps(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setForm((prev) => ({
-          ...prev,
-          target_latitude: pos.coords.latitude.toFixed(7),
-          target_longitude: pos.coords.longitude.toFixed(7),
-        }));
-        setGettingGps(false);
-      },
-      (err) => {
-        alert('Gagal mendeteksi lokasi GPS: ' + err.message);
-        setGettingGps(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  }
-
   async function handleSaveSettings(e) {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!onUpdateEvent) return;
     setSaving(true);
     try {
       await onUpdateEvent({
         fix_location: true,
         require_location: true,
-        target_latitude: form.target_latitude !== '' ? Number(form.target_latitude) : null,
-        target_longitude: form.target_longitude !== '' ? Number(form.target_longitude) : null,
-        radius_meters: Number(form.radius_meters) || 50,
+        target_latitude:
+          pickerState.target_latitude !== '' ? Number(pickerState.target_latitude) : null,
+        target_longitude:
+          pickerState.target_longitude !== '' ? Number(pickerState.target_longitude) : null,
+        radius_meters: Number(pickerState.radius_meters) || 50,
       });
       setIsEditing(false);
     } finally {
@@ -122,33 +101,31 @@ export default function LocationSettingCard({
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleToggleFixLocation}
-              disabled={saving || toggling}
-              className={`px-4 py-2 rounded-lg text-xs font-medium transition disabled:opacity-50 ${
-                isFixed
-                  ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
-                  : 'bg-emerald-600 text-white hover:bg-emerald-700'
-              }`}
-            >
-              {isFixed ? t.geofenceToggleOff : t.geofenceToggleOn}
-            </button>
-          </div>
+          <button
+            onClick={handleToggleFixLocation}
+            disabled={saving || toggling}
+            className={`px-4 py-2 rounded-lg text-xs font-medium transition disabled:opacity-50 ${
+              isFixed
+                ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
+                : 'bg-emerald-600 text-white hover:bg-emerald-700'
+            }`}
+          >
+            {isFixed ? t.geofenceToggleOff : t.geofenceToggleOn}
+          </button>
         </div>
 
-        {/* Informasi Koordinat & Radius saat Geofence Aktif atau Dikonfigurasi */}
-        <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+        {/* Info Ringkas Lokasi Saat Ini */}
+        {!isEditing ? (
+          <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <div className="space-y-1">
               <p className="text-slate-600">
                 <span className="font-medium text-slate-700">{t.targetCoordsLabel}: </span>
                 {event?.target_latitude && event?.target_longitude ? (
-                  <span className="font-mono text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200">
+                  <span className="font-mono text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200 font-medium">
                     {event.target_latitude}, {event.target_longitude}
                   </span>
                 ) : (
-                  <span className="italic text-amber-600">Belum diset (akan presensi di mana saja)</span>
+                  <span className="italic text-amber-600">Belum diatur</span>
                 )}
               </p>
               <p className="text-slate-600">
@@ -162,102 +139,70 @@ export default function LocationSettingCard({
                 href={mapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-3 py-1.5 bg-white hover:bg-slate-100 text-indigo-600 border border-slate-300 rounded-lg font-medium transition"
+                className="inline-flex items-center gap-1 px-3.5 py-2 bg-white hover:bg-slate-100 text-indigo-600 border border-slate-300 rounded-lg font-medium transition shadow-sm"
               >
                 📍 {t.openGoogleMaps} ↗
               </a>
               <button
                 type="button"
                 onClick={() => {
-                  setForm({
+                  setPickerState({
                     target_latitude: event?.target_latitude ?? '',
                     target_longitude: event?.target_longitude ?? '',
                     radius_meters: event?.radius_meters ?? 50,
                   });
-                  setIsEditing(!isEditing);
+                  setIsEditing(true);
                 }}
-                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition"
+                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition shadow-sm"
               >
                 ✏️ {t.editLocation}
               </button>
             </div>
           </div>
+        ) : (
+          /* Form Edit dengan LocationPicker */
+          <div className="bg-slate-50 rounded-2xl p-5 border border-indigo-200 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Pengaturan Titik Lokasi Presensi
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsEditing(false)}
+                className="text-xs text-slate-400 hover:text-slate-600 font-medium"
+              >
+                ✕ Tutup
+              </button>
+            </div>
 
-          {/* Form Modal/Inline untuk Edit Koordinat & Radius */}
-          {isEditing && (
-            <form onSubmit={handleSaveSettings} className="pt-3 border-t border-slate-200 space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-semibold text-slate-700">Form Pengaturan Titik Lokasi</span>
-                <button
-                  type="button"
-                  onClick={handleGetCurrentLocation}
-                  disabled={gettingGps}
-                  className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded text-xs font-medium transition disabled:opacity-50"
-                >
-                  📍 {gettingGps ? dict.adminList.gettingLocation : dict.adminList.getMyLocation}
-                </button>
-              </div>
+            <LocationPicker
+              latitude={pickerState.target_latitude}
+              longitude={pickerState.target_longitude}
+              radius={pickerState.radius_meters}
+              defaultSearchQuery={event?.lokasi_event || ''}
+              onChange={(updated) => setPickerState((prev) => ({ ...prev, ...updated }))}
+            />
 
-              <div className="grid sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-600 mb-1">Latitude</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={form.target_latitude}
-                    onChange={(e) => setForm({ ...form, target_latitude: e.target.value })}
-                    required
-                    placeholder="-6.5612345"
-                    className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-600 mb-1">Longitude</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={form.target_longitude}
-                    onChange={(e) => setForm({ ...form, target_longitude: e.target.value })}
-                    required
-                    placeholder="106.7812345"
-                    className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-600 mb-1">
-                    Toleransi Radius (Meter)
-                  </label>
-                  <input
-                    type="number"
-                    min="5"
-                    max="50000"
-                    value={form.radius_meters}
-                    onChange={(e) => setForm({ ...form, radius_meters: e.target.value })}
-                    required
-                    className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(false)}
-                  className="px-3 py-1.5 bg-slate-200 text-slate-700 hover:bg-slate-300 rounded-lg text-xs font-medium"
-                >
-                  {dict.common.cancel}
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-4 py-1.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg text-xs font-medium disabled:opacity-50"
-                >
-                  {saving ? dict.adminList.submitting : dict.common.save}
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setIsEditing(false)}
+                disabled={saving}
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-semibold transition"
+              >
+                {dict.common.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveSettings}
+                disabled={saving || !pickerState.target_latitude || !pickerState.target_longitude}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow transition disabled:opacity-50"
+              >
+                {saving ? dict.adminList.submitting : dict.common.save}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
