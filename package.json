@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "leaflet": "^1.9.4",
     "mysql2": "^3.10.1",
     "next": "14.2.5",
     "pdf-lib": "^1.17.1",

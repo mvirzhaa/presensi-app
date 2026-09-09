@@ -1,4 +1,5 @@
 import './globals.css';
+import 'leaflet/dist/leaflet.css';
 import { LanguageProvider } from '@/components/LanguageProvider';
 
 export const metadata = {
