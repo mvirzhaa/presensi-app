@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function UserModal({
   isOpen,
@@ -21,6 +21,18 @@ export default function UserModal({
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setForm({
+        nama: initialData?.nama || '',
+        username: initialData?.username || '',
+        password: '',
+        is_active: initialData?.is_active ?? 1,
+      });
+      setError('');
+    }
+  }, [isOpen, initialData]);
 
   if (!isOpen) return null;
 

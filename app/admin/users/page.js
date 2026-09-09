@@ -61,13 +61,14 @@ export default function UsersManagementPage() {
 
     const payload = isEdit
       ? {
-          nama: formData.nama,
+          username: formData.username?.trim(),
+          nama: formData.nama?.trim(),
           is_active: Number(formData.is_active) === 1,
-          ...(formData.password.trim() ? { password: formData.password.trim() } : {}),
+          ...(formData.password && formData.password.trim() ? { password: formData.password.trim() } : {}),
         }
       : {
-          nama: formData.nama,
-          username: formData.username,
+          nama: formData.nama?.trim(),
+          username: formData.username?.trim(),
           password: formData.password,
           role: 'admin',
         };

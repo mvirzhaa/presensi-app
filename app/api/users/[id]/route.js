@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getPool } from '@/lib/db';
-import { getSessionFromRequest } from '@/lib/auth';
+import {
+  getSessionFromRequest,
+  createSessionToken,
+  SESSION_COOKIE_NAME,
+  SESSION_MAX_AGE,
+} from '@/lib/auth';
 import { hashPassword } from '@/lib/password';
+
+export const dynamic = 'force-dynamic';
 
 // PATCH /api/users/:id -> Update user (KHUSUS SUPERADMIN)
 export async function PATCH(request, { params }) {
@@ -92,7 +99,28 @@ export async function PATCH(request, { params }) {
       [id]
     );
 
-    return NextResponse.json({ success: true, data: updated[0] });
+    const updatedUser = updated[0];
+    const res = NextResponse.json({ success: true, data: updatedUser });
+
+    // Jika mengedit akun sendiri, perbarui session token di cookie
+    if (Number(session.id) === Number(id)) {
+      const newToken = await createSessionToken({
+        id: updatedUser.id,
+        username: updatedUser.username,
+        nama: updatedUser.nama,
+        role: updatedUser.role,
+      });
+
+      res.cookies.set(SESSION_COOKIE_NAME, newToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: SESSION_MAX_AGE,
+      });
+    }
+
+    return res;
   } catch (err) {
     console.error(err);
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
