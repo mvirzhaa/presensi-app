@@ -4,7 +4,8 @@ import { getSessionFromRequest } from '@/lib/auth';
 
 const PUBLIC_FIELDS = `
   e.public_id, e.user_id, e.nama_event, e.tanggal_event, e.waktu_event, e.lokasi_event, e.pic_event,
-  e.require_location, e.notulensi, e.created_at,
+  e.require_location, e.fix_location, e.target_latitude, e.target_longitude, e.radius_meters,
+  e.notulensi, e.created_at,
   u.nama AS creator_nama, u.username AS creator_username
 `;
 
@@ -73,6 +74,31 @@ export async function PATCH(request, { params }) {
     if (typeof body.require_location === 'boolean') {
       fields.push('require_location = ?');
       values.push(body.require_location ? 1 : 0);
+    }
+    if (typeof body.fix_location === 'boolean') {
+      fields.push('fix_location = ?');
+      values.push(body.fix_location ? 1 : 0);
+    }
+    if ('target_latitude' in body) {
+      fields.push('target_latitude = ?');
+      values.push(
+        body.target_latitude != null && body.target_latitude !== '' && !isNaN(Number(body.target_latitude))
+          ? Number(body.target_latitude)
+          : null
+      );
+    }
+    if ('target_longitude' in body) {
+      fields.push('target_longitude = ?');
+      values.push(
+        body.target_longitude != null && body.target_longitude !== '' && !isNaN(Number(body.target_longitude))
+          ? Number(body.target_longitude)
+          : null
+      );
+    }
+    if ('radius_meters' in body) {
+      const r = Number(body.radius_meters);
+      fields.push('radius_meters = ?');
+      values.push(!isNaN(r) && r > 0 ? r : 50);
     }
     if (typeof body.nama_event === 'string' && body.nama_event.trim()) {
       fields.push('nama_event = ?');

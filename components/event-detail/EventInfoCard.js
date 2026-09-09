@@ -2,6 +2,7 @@
 
 import { apiUrl } from '@/lib/api';
 import { formatDate } from '@/lib/formatters';
+import { getGoogleMapsUrl } from '@/lib/geo';
 
 export default function EventInfoCard({ event, presensiUrl, dict, lang, id }) {
   const t = dict.adminDetail;
@@ -12,6 +13,7 @@ export default function EventInfoCard({ event, presensiUrl, dict, lang, id }) {
   }
 
   const locale = lang === 'en' ? 'en-US' : 'id-ID';
+  const mapsUrl = getGoogleMapsUrl(event.target_latitude, event.target_longitude, event.lokasi_event);
 
   return (
     <div className="grid md:grid-cols-3 gap-6">
@@ -21,7 +23,26 @@ export default function EventInfoCard({ event, presensiUrl, dict, lang, id }) {
           {t.dateLabel}: {formatDate(event.tanggal_event, locale)}
           {event.waktu_event ? ` · ${event.waktu_event.slice(0, 5)}` : ''}
         </p>
-        <p className="text-sm text-slate-500">{t.locationLabel}: {event.lokasi_event}</p>
+
+        <div className="flex items-center gap-2 flex-wrap pt-0.5">
+          <p className="text-sm text-slate-500">
+            {t.locationLabel}: <span className="text-slate-800 font-medium">{event.lokasi_event}</span>
+          </p>
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-full text-xs font-medium transition"
+          >
+            📍 {t.openGoogleMaps || 'Buka di Google Maps'} ↗
+          </a>
+          {event.fix_location === 1 && (
+            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-medium">
+              Batas Radius: {event.radius_meters || 50} m
+            </span>
+          )}
+        </div>
+
         <p className="text-sm text-slate-500">{t.picLabel}: {event.pic_event}</p>
         {event.creator_nama && (
           <p className="text-sm text-slate-500">

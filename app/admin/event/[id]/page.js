@@ -98,6 +98,30 @@ export default function EventDetailPage() {
     }
   }
 
+  async function handleUpdateEvent(patchData) {
+    if (!event) return;
+    try {
+      const res = await fetch(apiUrl(`/api/events/${id}`), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patchData),
+      });
+      if (res.status === 401) {
+        router.push('/admin/login');
+        return;
+      }
+      const json = await res.json();
+      if (json.success) {
+        setEvent(json.data);
+      } else {
+        alert(json.message || 'Gagal memperbarui event');
+      }
+      return json;
+    } catch {
+      alert('Terjadi kesalahan saat memperbarui event');
+    }
+  }
+
   async function handleSaveNotulensi() {
     setSavingNotulensi(true);
     setNotulensiSavedStatus(false);
@@ -199,10 +223,12 @@ export default function EventDetailPage() {
           id={id}
         />
 
-        {/* 2. Pengaturan Lokasi */}
+        {/* 2. Pengaturan Lokasi & Geofencing */}
         <LocationSettingCard
+          event={event}
           requireLocation={!!event.require_location}
           onToggle={handleToggleLocation}
+          onUpdateEvent={handleUpdateEvent}
           toggling={togglingLocation}
           dict={dict}
         />
@@ -239,6 +265,7 @@ export default function EventDetailPage() {
 
         {/* 6. Daftar Peserta Hadir */}
         <ParticipantsTable
+          event={event}
           participants={participants}
           dict={dict}
         />

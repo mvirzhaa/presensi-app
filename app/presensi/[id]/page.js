@@ -6,6 +6,7 @@ import SignaturePad from '@/components/SignaturePad';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useLanguage } from '@/components/LanguageProvider';
 import { apiUrl } from '@/lib/api';
+import { calculateDistance, formatDistance } from '@/lib/geo';
 
 export default function PresensiPage() {
   const { id } = useParams();
@@ -65,6 +66,16 @@ export default function PresensiPage() {
     );
   }
 
+  const isFixLocation = !!event?.fix_location && event?.target_latitude != null && event?.target_longitude != null;
+  const radiusMeters = event?.radius_meters || 50;
+
+  const distance =
+    isFixLocation && coords
+      ? calculateDistance(coords.latitude, coords.longitude, event.target_latitude, event.target_longitude)
+      : null;
+
+  const isOutsideGeofence = isFixLocation && distance !== null && distance > radiusMeters;
+
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
@@ -76,6 +87,26 @@ export default function PresensiPage() {
     if (sigRef.current.isEmpty()) {
       setError(t.errorEmptySignature);
       return;
+    }
+
+    if (isFixLocation) {
+      if (locStatus === 'denied' || locStatus === 'unsupported' || !coords) {
+        setError(
+          t.locDeniedGeofence ||
+            'Izin akses lokasi (GPS) wajib diaktifkan karena kegiatan ini memberlakukan pembatasan area kehadiran.'
+        );
+        return;
+      }
+      if (isOutsideGeofence) {
+        const msg = (
+          t.geofenceInvalid ||
+          'Anda berada di luar area presensi (jarak: {dist}, maksimal: {radius} m)'
+        )
+          .replace('{dist}', formatDistance(distance))
+          .replace('{radius}', radiusMeters);
+        setError(msg);
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -202,22 +233,80 @@ export default function PresensiPage() {
               <SignaturePad ref={sigRef} />
             </div>
 
-            {locStatus !== 'idle' && (
-              <p className="text-xs text-slate-400">
-                {locStatus === 'requesting' && t.locRequesting}
-                {locStatus === 'granted' && t.locGranted}
-                {locStatus === 'denied' && t.locDenied}
-                {locStatus === 'unsupported' && t.locUnsupported}
-                {locStatus === 'disabled' && t.locDisabled}
-              </p>
+            {/* Status Geofencing / Deteksi Lokasi */}
+            {isFixLocation ? (
+              <div className="rounded-xl border p-3.5 text-xs space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold text-slate-700">Verifikasi Lokasi Kehadiran</span>
+                  <button
+                    type="button"
+                    onClick={requestLocation}
+                    className="text-indigo-600 hover:underline font-medium"
+                  >
+                    🔄 Perbarui GPS
+                  </button>
+                </div>
+
+                {locStatus === 'requesting' && (
+                  <p className="text-amber-600 bg-amber-50 p-2 rounded-lg border border-amber-200">
+                    ⏳ {t.locRequesting}
+                  </p>
+                )}
+
+                {locStatus === 'denied' && (
+                  <div className="bg-red-50 text-red-700 p-2.5 rounded-lg border border-red-200 space-y-1">
+                    <p className="font-semibold">⚠️ Izin Lokasi Ditolak</p>
+                    <p>{t.locDeniedGeofence}</p>
+                    <p className="text-[11px] text-red-600">
+                      Buka pengaturan browser Anda, aktifkan izin lokasi untuk situs ini, lalu klik tombol Perbarui GPS di atas.
+                    </p>
+                  </div>
+                )}
+
+                {coords && distance !== null && (
+                  <div>
+                    {isOutsideGeofence ? (
+                      <div className="bg-red-50 text-red-700 p-2.5 rounded-lg border border-red-200 space-y-1">
+                        <p className="font-semibold">⚠️ Anda Berada di Luar Area Acara</p>
+                        <p>
+                          Jarak Anda saat ini: <span className="font-bold">{formatDistance(distance)}</span> (toleransi maksimal: <span className="font-bold">{radiusMeters} m</span>).
+                        </p>
+                        <p className="text-[11px] text-red-600">
+                          Presensi hanya dapat dikirim jika Anda berada di area lokasi kegiatan.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="bg-emerald-50 text-emerald-700 p-2.5 rounded-lg border border-emerald-200">
+                        <p className="font-semibold">✓ Lokasi Terverifikasi di Area Acara</p>
+                        <p className="text-[11px] mt-0.5">
+                          Jarak Anda: {formatDistance(distance)} (dalam batas radius {radiusMeters} m).
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              locStatus !== 'idle' && (
+                <p className="text-xs text-slate-400">
+                  {locStatus === 'requesting' && t.locRequesting}
+                  {locStatus === 'granted' && t.locGranted}
+                  {locStatus === 'denied' && t.locDenied}
+                  {locStatus === 'unsupported' && t.locUnsupported}
+                  {locStatus === 'disabled' && t.locDisabled}
+                </p>
+              )
             )}
 
             {error && <p className="text-sm text-red-600">{error}</p>}
 
             <button
               type="submit"
-              disabled={submitting}
-              className="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg text-base sm:text-sm font-medium hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50 transition"
+              disabled={
+                submitting ||
+                (isFixLocation && (isOutsideGeofence || !coords || locStatus === 'denied' || locStatus === 'requesting'))
+              }
+              className="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg text-base sm:text-sm font-medium hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               {submitting ? t.submitting : t.submit}
             </button>

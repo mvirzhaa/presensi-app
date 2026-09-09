@@ -6,7 +6,8 @@ import { generatePublicId } from '@/lib/id';
 // Kolom yang aman ditampilkan ke client
 const PUBLIC_FIELDS = `
   e.public_id, e.nama_event, e.tanggal_event, e.waktu_event, e.lokasi_event, e.pic_event,
-  e.require_location, e.notulensi, e.created_at,
+  e.require_location, e.fix_location, e.target_latitude, e.target_longitude, e.radius_meters,
+  e.notulensi, e.created_at,
   u.nama AS creator_nama, u.username AS creator_username
 `;
 
@@ -59,7 +60,19 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { nama_event, tanggal_event, waktu_event, lokasi_event, pic_event, require_location, notulensi } = body;
+    const {
+      nama_event,
+      tanggal_event,
+      waktu_event,
+      lokasi_event,
+      pic_event,
+      require_location,
+      fix_location,
+      target_latitude,
+      target_longitude,
+      radius_meters,
+      notulensi,
+    } = body;
 
     if (!nama_event || !tanggal_event || !lokasi_event || !pic_event) {
       return NextResponse.json(
@@ -69,6 +82,15 @@ export async function POST(request) {
     }
 
     const requireLocationValue = require_location === false ? 0 : 1;
+    const fixLocationValue = fix_location ? 1 : 0;
+    const targetLat = target_latitude != null && target_latitude !== '' && !isNaN(Number(target_latitude))
+      ? Number(target_latitude)
+      : null;
+    const targetLon = target_longitude != null && target_longitude !== '' && !isNaN(Number(target_longitude))
+      ? Number(target_longitude)
+      : null;
+    const radiusVal = Number(radius_meters) > 0 ? Number(radius_meters) : 50;
+
     const waktuEventValue = waktu_event && waktu_event.trim() ? waktu_event.trim() : null;
     const notulensiValue = notulensi && notulensi.trim() ? notulensi.trim() : null;
     const publicId = generatePublicId();
@@ -77,9 +99,26 @@ export async function POST(request) {
     await ensureSchema(pool);
 
     await pool.query(
-      `INSERT INTO events (public_id, user_id, nama_event, tanggal_event, waktu_event, lokasi_event, pic_event, require_location, notulensi)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [publicId, session.id || null, nama_event, tanggal_event, waktuEventValue, lokasi_event, pic_event, requireLocationValue, notulensiValue]
+      `INSERT INTO events (
+        public_id, user_id, nama_event, tanggal_event, waktu_event, lokasi_event, pic_event,
+        require_location, fix_location, target_latitude, target_longitude, radius_meters, notulensi
+       )
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        publicId,
+        session.id || null,
+        nama_event,
+        tanggal_event,
+        waktuEventValue,
+        lokasi_event,
+        pic_event,
+        requireLocationValue,
+        fixLocationValue,
+        targetLat,
+        targetLon,
+        radiusVal,
+        notulensiValue,
+      ]
     );
 
     return NextResponse.json(

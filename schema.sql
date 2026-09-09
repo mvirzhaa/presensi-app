@@ -28,6 +28,10 @@ CREATE TABLE IF NOT EXISTS events (
   lokasi_event     VARCHAR(255) NOT NULL,
   pic_event        VARCHAR(255) NOT NULL,
   require_location TINYINT(1) NOT NULL DEFAULT 1,            -- 1 = wajibkan deteksi lokasi peserta, 0 = nonaktif
+  fix_location     TINYINT(1) NOT NULL DEFAULT 0,            -- 1 = wajib presensi dalam radius target lokasi
+  target_latitude  DECIMAL(10,7) NULL,                       -- titik lintang lokasi presensi
+  target_longitude DECIMAL(10,7) NULL,                       -- titik bujur lokasi presensi
+  radius_meters    INT NOT NULL DEFAULT 50,                  -- batas toleransi radius jarak (meter)
   notulensi        MEDIUMTEXT NULL,                          -- catatan/notulensi rapat
   created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_events_public_id (public_id),

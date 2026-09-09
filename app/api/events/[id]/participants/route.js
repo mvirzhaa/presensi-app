@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getPool } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
+import { calculateDistance } from '@/lib/geo';
 
 // Param [id] di sini adalah PUBLIC_ID (acak), bukan id auto-increment.
 // Setiap query selalu resolve public_id -> id internal terlebih dahulu.
@@ -55,12 +56,45 @@ export async function POST(request, { params }) {
 
     const pool = getPool();
 
-    const [eventRows] = await pool.query('SELECT id FROM events WHERE public_id = ?', [id]);
+    const [eventRows] = await pool.query(
+      'SELECT id, fix_location, target_latitude, target_longitude, radius_meters FROM events WHERE public_id = ?',
+      [id]
+    );
     if (eventRows.length === 0) {
       return NextResponse.json(
         { success: false, message: 'Event tidak ditemukan' },
         { status: 404 }
       );
+    }
+
+    const event = eventRows[0];
+
+    // Validasi Fix Lokasi (Geofencing Dinamis) jika diaktifkan pada event ini
+    if (event.fix_location && event.target_latitude != null && event.target_longitude != null) {
+      if (latitude == null || longitude == null || latitude === '' || longitude === '') {
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Izin lokasi (GPS) wajib diaktifkan karena kegiatan ini memberlakukan pembatasan area kehadiran.',
+          },
+          { status: 400 }
+        );
+      }
+
+      const distance = calculateDistance(latitude, longitude, event.target_latitude, event.target_longitude);
+      const maxRadius = event.radius_meters || 50;
+
+      if (distance === null || distance > maxRadius) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Lokasi Anda berada di luar radius kegiatan (jarak Anda: ${
+              distance != null ? distance + ' m' : 'tidak valid'
+            }, batas toleransi: ${maxRadius} m). Mohon lakukan presensi di area kegiatan.`,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Tanggal & jam presensi otomatis diambil dari waktu server (NOW())
@@ -69,7 +103,7 @@ export async function POST(request, { params }) {
       `INSERT INTO participants
         (event_id, nama, asal_instansi, jabatan, signature, latitude, longitude, presensi_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [eventRows[0].id, nama, asal_instansi, jabatan, signature, latitude ?? null, longitude ?? null]
+      [event.id, nama, asal_instansi, jabatan, signature, latitude ?? null, longitude ?? null]
     );
 
     return NextResponse.json(

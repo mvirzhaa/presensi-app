@@ -1,6 +1,8 @@
 'use client';
 
-export default function ParticipantsTable({ participants, dict }) {
+import { calculateDistance, formatDistance } from '@/lib/geo';
+
+export default function ParticipantsTable({ event, participants, dict }) {
   const t = dict.adminDetail;
 
   return (
@@ -28,29 +30,61 @@ export default function ParticipantsTable({ participants, dict }) {
               </tr>
             </thead>
             <tbody>
-              {participants.map((p, idx) => (
-                <tr key={p.id} className="border-b border-slate-100">
-                  <td className="py-2 pr-3">{idx + 1}</td>
-                  <td className="py-2 pr-3 font-medium text-slate-800">{p.nama}</td>
-                  <td className="py-2 pr-3">{p.asal_instansi}</td>
-                  <td className="py-2 pr-3">{p.jabatan}</td>
-                  <td className="py-2 pr-3">{new Date(p.presensi_at).toLocaleString()}</td>
-                  <td className="py-2 pr-3">
-                    {p.latitude && p.longitude ? (
-                      <a
-                        className="text-indigo-600 hover:underline"
-                        href={`https://www.google.com/maps?q=${p.latitude},${p.longitude}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {t.viewMap}
-                      </a>
-                    ) : (
-                      '-'
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {participants.map((p, idx) => {
+                let distance = null;
+                let isWithin = true;
+                if (
+                  p.latitude &&
+                  p.longitude &&
+                  event?.target_latitude != null &&
+                  event?.target_longitude != null
+                ) {
+                  distance = calculateDistance(
+                    p.latitude,
+                    p.longitude,
+                    event.target_latitude,
+                    event.target_longitude
+                  );
+                  isWithin = distance != null && distance <= (event.radius_meters || 50);
+                }
+
+                return (
+                  <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition">
+                    <td className="py-2.5 pr-3 text-slate-400">{idx + 1}</td>
+                    <td className="py-2.5 pr-3 font-medium text-slate-800">{p.nama}</td>
+                    <td className="py-2.5 pr-3 text-slate-600">{p.asal_instansi}</td>
+                    <td className="py-2.5 pr-3 text-slate-600">{p.jabatan}</td>
+                    <td className="py-2.5 pr-3 text-slate-500">{new Date(p.presensi_at).toLocaleString()}</td>
+                    <td className="py-2.5 pr-3">
+                      {p.latitude && p.longitude ? (
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <a
+                            className="inline-flex items-center gap-1 text-indigo-600 hover:underline font-medium"
+                            href={`https://www.google.com/maps?q=${p.latitude},${p.longitude}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            📍 {t.viewMap}
+                          </a>
+                          {distance !== null && (
+                            <span
+                              className={`text-[11px] px-2 py-0.5 rounded-full font-medium border ${
+                                isWithin
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-red-50 text-red-600 border-red-200'
+                              }`}
+                            >
+                              {isWithin ? `✓ ±${formatDistance(distance)}` : `⚠ ±${formatDistance(distance)}`}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
