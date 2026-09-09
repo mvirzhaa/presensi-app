@@ -16,7 +16,6 @@ export default function LocationPicker({
   const [searchResults, setSearchResults] = useState([]);
   const [searchError, setSearchError] = useState('');
   const [gettingGps, setGettingGps] = useState(false);
-  const [showManualCoords, setShowManualCoords] = useState(false);
 
   // Ambil Lokasi Saat Ini (GPS)
   function handleGetCurrentLocation() {
@@ -84,7 +83,7 @@ export default function LocationPicker({
 
   return (
     <div className="space-y-4">
-      {/* 1. Tombol Utama & Paling Menonjol: AMBIL LOKASI SAYA SAAT INI */}
+      {/* 1. Tombol Utama & Menonjol: AMBIL LOKASI SAYA SAAT INI */}
       <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 rounded-xl p-4 sm:p-5 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -100,7 +99,7 @@ export default function LocationPicker({
           type="button"
           onClick={handleGetCurrentLocation}
           disabled={gettingGps}
-          className="px-5 py-3 bg-white hover:bg-indigo-50 active:bg-indigo-100 text-indigo-700 font-bold text-sm rounded-xl shadow transition shrink-0 flex items-center justify-center gap-2 disabled:opacity-60"
+          className="px-5 py-3 bg-white hover:bg-indigo-50 active:bg-indigo-100 text-indigo-700 font-bold text-sm rounded-xl shadow transition shrink-0 flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
         >
           {gettingGps ? (
             <>
@@ -140,7 +139,7 @@ export default function LocationPicker({
           <button
             type="submit"
             disabled={searching || !searchQuery.trim()}
-            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold shrink-0 transition disabled:opacity-50"
+            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold shrink-0 transition disabled:opacity-50 cursor-pointer"
           >
             {searching ? 'Mencari...' : '🔍 Cari Tempat'}
           </button>
@@ -159,7 +158,7 @@ export default function LocationPicker({
                 key={idx}
                 type="button"
                 onClick={() => handleSelectPlace(item)}
-                className="w-full text-left p-2.5 rounded-lg bg-white hover:bg-indigo-100/70 border border-slate-200/80 transition flex items-start gap-2.5 text-xs group"
+                className="w-full text-left p-2.5 rounded-lg bg-white hover:bg-indigo-100/70 border border-slate-200/80 transition flex items-start gap-2.5 text-xs group cursor-pointer"
               >
                 <span className="text-base text-indigo-600 mt-0.5">📍</span>
                 <div className="flex-1 min-w-0">
@@ -179,38 +178,76 @@ export default function LocationPicker({
         )}
       </div>
 
-      {/* 3. Status Titik Koordinat Terpilih & Preview Google Maps */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-        <div className="space-y-1">
-          <div className="flex items-center gap-1.5 font-semibold text-slate-700">
-            <span>📌</span>
-            <span>Titik Lokasi Presensi Terpilih:</span>
+      {/* 3. Pengisian Koordinat Latitude & Longitude (TETAP TERSEDIA & DAPAT DIEDIT MANUAL) */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Koordinat Titik Acara (Latitude &amp; Longitude)
+            </label>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Otomatis terisi dari pilihan di atas, dan Anda juga dapat mengetik/mengubah koordinat secara manual.
+            </p>
           </div>
-          {hasCoords ? (
-            <p className="font-mono text-slate-800 bg-white px-2.5 py-1 rounded-md border border-slate-200 inline-block font-medium">
-              {latitude}, {longitude}
-            </p>
-          ) : (
-            <p className="text-amber-600 font-medium italic">
-              Belum dipilih (silakan klik &quot;Gunakan Lokasi Saya&quot; atau cari nama tempat di atas)
-            </p>
+          {hasCoords && (
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-semibold transition"
+            >
+              📍 Cek di Google Maps ↗
+            </a>
           )}
         </div>
 
-        {hasCoords && (
-          <a
-            href={mapsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-100 text-indigo-600 border border-slate-300 rounded-lg font-semibold shadow-sm transition self-start sm:self-center"
-          >
-            📍 Cek di Google Maps ↗
-          </a>
-        )}
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              Latitude (Lintang) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              step="any"
+              value={latitude ?? ''}
+              onChange={(e) =>
+                onChange({
+                  target_latitude: e.target.value,
+                  target_longitude: longitude,
+                  radius_meters: radius,
+                })
+              }
+              placeholder="-6.5604180"
+              required
+              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              Longitude (Bujur) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              step="any"
+              value={longitude ?? ''}
+              onChange={(e) =>
+                onChange({
+                  target_latitude: latitude,
+                  target_longitude: e.target.value,
+                  radius_meters: radius,
+                })
+              }
+              placeholder="106.7920810"
+              required
+              className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50"
+            />
+          </div>
+        </div>
       </div>
 
       {/* 4. Toleransi Radius Jarak */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
@@ -232,7 +269,7 @@ export default function LocationPicker({
                     radius_meters: preset,
                   })
                 }
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer ${
                   Number(radius) === preset
                     ? 'bg-indigo-600 text-white border-indigo-600'
                     : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
@@ -262,61 +299,6 @@ export default function LocationPicker({
           />
           <span className="text-sm font-medium text-slate-600">meter</span>
         </div>
-      </div>
-
-      {/* 5. Pengaturan Manual Latitude & Longitude (Collapsible) */}
-      <div className="pt-1">
-        <button
-          type="button"
-          onClick={() => setShowManualCoords(!showManualCoords)}
-          className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1 font-medium transition"
-        >
-          <span>{showManualCoords ? '▼' : '▶'}</span>
-          <span>Atur Angka Koordinat Latitude &amp; Longitude Manual (Khusus/Lanjutan)</span>
-        </button>
-
-        {showManualCoords && (
-          <div className="mt-2.5 p-3.5 bg-slate-50 border border-slate-200 rounded-xl grid sm:grid-cols-2 gap-3 text-xs">
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                Latitude (Lintang)
-              </label>
-              <input
-                type="number"
-                step="any"
-                value={latitude ?? ''}
-                onChange={(e) =>
-                  onChange({
-                    target_latitude: e.target.value,
-                    target_longitude: longitude,
-                    radius_meters: radius,
-                  })
-                }
-                placeholder="-6.5612345"
-                className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                Longitude (Bujur)
-              </label>
-              <input
-                type="number"
-                step="any"
-                value={longitude ?? ''}
-                onChange={(e) =>
-                  onChange({
-                    target_latitude: latitude,
-                    target_longitude: e.target.value,
-                    radius_meters: radius,
-                  })
-                }
-                placeholder="106.7812345"
-                className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
