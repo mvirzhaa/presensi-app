@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/components/LanguageProvider';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
@@ -16,6 +16,62 @@ function LoginForm() {
   const [form, setForm] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [ssoProcessing, setSsoProcessing] = useState(false);
+  const [ssoStatusText, setSsoStatusText] = useState('Memproses login SSO E-Portal...');
+
+  useEffect(() => {
+    const handleSsoLogin = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const ssoToken = urlParams.get('token');
+      const roleId = urlParams.get('role_id');
+      const appModuleId = urlParams.get('appModule_id');
+
+      if (!ssoToken || !roleId || !appModuleId) return;
+
+      setSsoProcessing(true);
+      setSsoStatusText('Memverifikasi autentikasi ke E-Portal UIKA...');
+
+      // Bersihkan query string dari URL agar token tidak tersimpan di riwayat browser
+      window.history.replaceState({}, document.title, window.location.pathname);
+
+      try {
+        const callbackUrl = `${apiUrl('/api/sso/callback')}?token=${encodeURIComponent(ssoToken)}&role_id=${encodeURIComponent(roleId)}&appModule_id=${encodeURIComponent(appModuleId)}`;
+        const res = await fetch(callbackUrl, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+        });
+
+        const data = await res.json();
+
+        if (data.status !== 200 || !data.success) {
+          throw new Error(data.message || 'Token SSO tidak valid atau sudah kedaluwarsa.');
+        }
+
+        setSsoStatusText('Login berhasil! Mengalihkan ke Dashboard...');
+
+        // Opsional: sinkronisasi session via /api/login sesuai spesifikasi template E-Portal
+        try {
+          await fetch(apiUrl('/api/login'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data.data),
+          });
+        } catch {
+          // Session cookie sudah diset oleh /api/sso/callback
+        }
+
+        const nextParam = searchParams.get('next') || '/admin';
+        const targetUrl = apiUrl(nextParam.startsWith('/') ? nextParam : `/${nextParam}`);
+        window.location.href = targetUrl;
+      } catch (err) {
+        console.error('[SSO Error]', err);
+        setError(`SSO Login gagal: ${err.message || 'Terjadi kesalahan'}. Silakan login manual.`);
+        setSsoProcessing(false);
+      }
+    };
+
+    handleSsoLogin();
+  }, [searchParams]);
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -44,6 +100,21 @@ function LoginForm() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (ssoProcessing) {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center px-4 relative">
+        <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center space-y-4">
+          <div className="flex justify-center">
+            <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+          <h2 className="text-lg font-bold text-slate-800">Autentikasi SSO E-Portal</h2>
+          <p className="text-sm text-slate-600">{ssoStatusText}</p>
+          <p className="text-xs text-slate-400">Mohon tunggu, Anda sedang dialihkan...</p>
+        </div>
+      </main>
+    );
   }
 
   return (
