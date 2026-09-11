@@ -112,8 +112,22 @@ async function handleSsoValidation(token, roleId, appModuleId) {
     'user_sso'
   ).trim();
   const nama = (eportalUser.name || eportalUser.nama || username).trim();
-  const rawRole = (eportalUser.role || '').toString().toLowerCase();
-  const role = rawRole === 'superadmin' ? 'superadmin' : 'admin';
+
+  // 1b. Logika Pemetaan Role E-Portal:
+  // - Role bertaraf Super Admin di E-Portal -> role 'superadmin' di Presensi
+  // - Seluruh role lainnya (Dosen, Pegawai, Tendik, Dekan, dll.) -> role 'admin' (Operator Kegiatan)
+  const roleObj = eportalUser.role || eportalData.role || eportalData.access?.role || {};
+  const roleName = typeof roleObj === 'string'
+    ? roleObj.toLowerCase()
+    : (roleObj.name || roleObj.role_name || roleObj.nama || '').toString().toLowerCase();
+
+  const isSuper =
+    roleName.includes('superadmin') ||
+    roleName.includes('super admin') ||
+    roleName.includes('super_admin') ||
+    roleName === 'administrator';
+
+  const role = isSuper ? 'superadmin' : 'admin';
 
   // 2. Sinkronisasi atau Auto-Provision ke Database Lokal MySQL
   const pool = getPool();
@@ -141,17 +155,20 @@ async function handleSsoValidation(token, roleId, appModuleId) {
         );
       }
 
-      // Perbarui nama atau email jika ada pembaruan dari E-Portal
+      // Pertahankan superadmin lokal jika sudah superadmin, atau upgrade jika E-Portal mengirimkan Super Admin
+      const resolvedRole = (dbUser.role === 'superadmin' || isSuper) ? 'superadmin' : 'admin';
+
+      // Perbarui nama, email, atau role jika ada pembaruan dari E-Portal
       await pool.query(
-        `UPDATE users SET nama = ?, email = COALESCE(email, ?) WHERE id = ?`,
-        [nama, email || null, dbUser.id]
+        `UPDATE users SET nama = ?, email = COALESCE(email, ?), role = ? WHERE id = ?`,
+        [nama, email || null, resolvedRole, dbUser.id]
       );
 
       localUser = {
         id: dbUser.id,
         username: dbUser.username,
         nama: nama || dbUser.nama,
-        role: dbUser.role,
+        role: resolvedRole,
       };
     } else {
       // Auto-provision user baru dari E-Portal
