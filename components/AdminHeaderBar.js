@@ -37,8 +37,8 @@ export default function AdminHeaderBar() {
     try {
       await fetch(apiUrl('/api/auth/logout'), { method: 'POST' });
     } finally {
-      router.push('/admin/login');
-      router.refresh();
+      const eportalUrl = process.env.NEXT_PUBLIC_EPORTAL_URL || 'https://eportal.uika-bogor.ac.id';
+      window.location.href = eportalUrl;
     }
   }
 
