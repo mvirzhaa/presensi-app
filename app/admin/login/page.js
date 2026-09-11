@@ -78,7 +78,7 @@ function LoginForm() {
               token: ssoToken,
               role_id: roleId,
               appModule_id: appModuleId,
-              eportalUser: clientData.user,
+              eportalUser: clientData.user || clientData.data?.user || clientData.data || {},
             }),
           });
 

@@ -31,6 +31,64 @@ function getIntrospectUrl() {
   return `${cleanUrl}/api/sso/introspect`;
 }
 
+function extractRealName(u = {}) {
+  // Cek semua kemungkinan field nama dari E-Portal
+  const candidates = [
+    u.nama_lengkap,
+    u.nama_lengkap_gelar,
+    u.nama,
+    u.full_name,
+    u.fullname,
+    u.display_name,
+    u.profile?.nama_lengkap,
+    u.profile?.nama,
+    u.profile?.name,
+    u.pegawai?.nama,
+    u.dosen?.nama,
+    u.mahasiswa?.nama,
+    u.name,
+  ];
+
+  // 1. Prioritaskan kandidat yang valid dan BUKAN berupa email (tidak mengandung @)
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim() && !c.includes('@')) {
+      return c.trim();
+    }
+  }
+
+  // 2. Jika semua kandidat mengandung @ (misal akun E-Portal didaftarkan menggunakan email pada field name)
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim()) {
+      if (c.includes('@')) {
+        const prefix = c.split('@')[0].replace(/[._-]/g, ' ');
+        return prefix.charAt(0).toUpperCase() + prefix.slice(1);
+      }
+      return c.trim();
+    }
+  }
+
+  return 'User';
+}
+
+function extractUsername(u = {}, email = '') {
+  const candidates = [
+    u.username,
+    u.npm,
+    u.nidn,
+    u.nip,
+    email ? email.split('@')[0] : '',
+    u.name && !u.name.includes('@') ? u.name : '',
+    'user_sso',
+  ];
+
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim()) {
+      return c.trim();
+    }
+  }
+  return 'user_sso';
+}
+
 async function handleSsoValidation(token, roleId, appModuleId, directEportalUser = null) {
   if (!token || !roleId || !appModuleId) {
     return NextResponse.json(
@@ -112,13 +170,8 @@ async function handleSsoValidation(token, roleId, appModuleId, directEportalUser
   }
 
   const email = (eportalUser.email || '').trim().toLowerCase();
-  const username = (
-    eportalUser.username ||
-    (email ? email.split('@')[0] : '') ||
-    eportalUser.name ||
-    'user_sso'
-  ).trim();
-  const nama = (eportalUser.name || eportalUser.nama || username).trim();
+  const username = extractUsername(eportalUser, email);
+  const nama = extractRealName(eportalUser);
 
   // 1b. Logika Pemetaan Role E-Portal:
   // - Role bertaraf Super Admin di E-Portal -> role 'superadmin' di Presensi
