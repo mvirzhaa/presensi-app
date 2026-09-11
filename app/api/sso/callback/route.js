@@ -89,6 +89,30 @@ function extractUsername(u = {}, email = '') {
   return 'user_sso';
 }
 
+function isDesignatedSuperadmin(email, username) {
+  const configuredEmails = (process.env.SUPERADMIN_EMAILS || 'tias.teknikinformatika@gmail.com')
+    .toLowerCase()
+    .split(',')
+    .map((e) => e.trim())
+    .filter(Boolean);
+
+  const cleanEmail = (email || '').toLowerCase().trim();
+  const cleanUsername = (username || '').toLowerCase().trim();
+
+  // 1. Cek apakah email cocok dengan daftar SUPERADMIN_EMAILS
+  if (cleanEmail && configuredEmails.includes(cleanEmail)) {
+    return true;
+  }
+
+  // 2. Cek apakah username default lokal dari .env (misal 'admin')
+  const defaultAdminUser = (process.env.ADMIN_USERNAME || 'admin').toLowerCase().trim();
+  if (cleanUsername === defaultAdminUser) {
+    return true;
+  }
+
+  return false;
+}
+
 async function handleSsoValidation(token, roleId, appModuleId, directEportalUser = null) {
   if (!token || !roleId || !appModuleId) {
     return NextResponse.json(
@@ -173,20 +197,11 @@ async function handleSsoValidation(token, roleId, appModuleId, directEportalUser
   const username = extractUsername(eportalUser, email);
   const nama = extractRealName(eportalUser);
 
-  // 1b. Logika Pemetaan Role E-Portal:
-  // - Role bertaraf Super Admin di E-Portal -> role 'superadmin' di Presensi
-  // - Seluruh role lainnya (Dosen, Pegawai, Tendik, Dekan, dll.) -> role 'admin' (Operator Kegiatan)
-  const roleObj = eportalUser.role || {};
-  const roleName = typeof roleObj === 'string'
-    ? roleObj.toLowerCase()
-    : (roleObj.name || roleObj.role_name || roleObj.nama || '').toString().toLowerCase();
-
-  const isSuper =
-    roleName.includes('superadmin') ||
-    roleName.includes('super admin') ||
-    roleName.includes('super_admin') ||
-    roleName === 'administrator';
-
+  // 1b. Logika Penentuan Super Admin:
+  // HANYA akun yang secara eksplisit terdaftar di SUPERADMIN_EMAILS (misal tias.teknikinformatika@gmail.com)
+  // yang berhak mendapatkan role 'superadmin' di sistem Presensi.
+  // Seluruh akun lainnya dari E-Portal HANYA mendapatkan role 'admin' (Operator Kegiatan).
+  const isSuper = isDesignatedSuperadmin(email, username);
   const role = isSuper ? 'superadmin' : 'admin';
 
   // 2. Sinkronisasi atau Auto-Provision ke Database Lokal MySQL
@@ -215,8 +230,10 @@ async function handleSsoValidation(token, roleId, appModuleId, directEportalUser
         );
       }
 
-      // Pertahankan superadmin lokal jika sudah superadmin, atau upgrade jika E-Portal mengirimkan Super Admin
-      const resolvedRole = (dbUser.role === 'superadmin' || isSuper) ? 'superadmin' : 'admin';
+      // Pastikan role disesuaikan secara ketat:
+      // Hanya akun resmi superadmin yang berstatus 'superadmin'.
+      // Akun lain yang sebelumnya tercatat superadmin akan dikembalikan ke 'admin' (Operator).
+      const resolvedRole = isSuper ? 'superadmin' : 'admin';
 
       // Perbarui nama, email, atau role jika ada pembaruan dari E-Portal
       await pool.query(
@@ -227,7 +244,7 @@ async function handleSsoValidation(token, roleId, appModuleId, directEportalUser
       localUser = {
         id: dbUser.id,
         username: dbUser.username,
-        nama: nama || dbUser.nama,
+        nama: nama,
         role: resolvedRole,
       };
     } else {
