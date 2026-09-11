@@ -36,29 +36,61 @@ function LoginForm() {
 
       try {
         const callbackUrl = `${apiUrl('/api/sso/callback')}?token=${encodeURIComponent(ssoToken)}&role_id=${encodeURIComponent(roleId)}&appModule_id=${encodeURIComponent(appModuleId)}`;
-        const res = await fetch(callbackUrl, {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' },
-        });
+        let data;
+        try {
+          const res = await fetch(callbackUrl, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+          });
+          data = await res.json();
+        } catch {
+          data = { status: 502, fallback_client: true };
+        }
 
-        const data = await res.json();
+        // Jika server VPS tidak dapat menjangkau E-Portal (karena firewall / routing kampus),
+        // jalankan introspeksi langsung dari browser pengguna (CORS sudah diizinkan oleh E-Portal).
+        if (data.status === 502 || data.fallback_client) {
+          setSsoStatusText('Menghubungkan langsung ke E-Portal...');
 
-        if (data.status !== 200 || !data.success) {
+          const clientRes = await fetch('https://eportal.uika-bogor.ac.id/eportal-api/api/sso/introspect', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-SSO-Client-ID': 'a4ac8237-41ff-4a6e-8fc3-c365115455c3',
+              'X-SSO-Client-Secret': 'oPVaTLrsUMD9Nl6YtEaw87ON0P8dcv2oOxICC29X7KEsld0kVnuV3YsN3WAapcGB',
+              'Authorization': `Bearer ${ssoToken}`,
+            },
+            body: JSON.stringify({}),
+          });
+
+          const clientData = await clientRes.json();
+
+          if (clientData.status !== 200 || !clientData.valid) {
+            throw new Error(clientData.message || 'Token SSO tidak valid atau sudah kedaluwarsa.');
+          }
+
+          // Kirim data user yang terverifikasi ke server Presensi untuk auto-provision dan pembuatan session cookie
+          setSsoStatusText('Menyinkronkan sesi login...');
+          const syncRes = await fetch(apiUrl('/api/sso/callback'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              token: ssoToken,
+              role_id: roleId,
+              appModule_id: appModuleId,
+              eportalUser: clientData.user,
+            }),
+          });
+
+          data = await syncRes.json();
+          if (data.status !== 200 || !data.success) {
+            throw new Error(data.message || 'Gagal menyimpan sesi login.');
+          }
+        } else if (data.status !== 200 || !data.success) {
           throw new Error(data.message || 'Token SSO tidak valid atau sudah kedaluwarsa.');
         }
 
         setSsoStatusText('Login berhasil! Mengalihkan ke Dashboard...');
-
-        // Opsional: sinkronisasi session via /api/login sesuai spesifikasi template E-Portal
-        try {
-          await fetch(apiUrl('/api/login'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data.data),
-          });
-        } catch {
-          // Session cookie sudah diset oleh /api/sso/callback
-        }
 
         const nextParam = searchParams.get('next') || '/admin';
         const targetUrl = apiUrl(nextParam.startsWith('/') ? nextParam : `/${nextParam}`);

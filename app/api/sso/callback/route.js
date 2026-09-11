@@ -31,7 +31,7 @@ function getIntrospectUrl() {
   return `${cleanUrl}/api/sso/introspect`;
 }
 
-async function handleSsoValidation(token, roleId, appModuleId) {
+async function handleSsoValidation(token, roleId, appModuleId, directEportalUser = null) {
   if (!token || !roleId || !appModuleId) {
     return NextResponse.json(
       { status: 400, success: false, message: 'Parameter SSO tidak lengkap (token, role_id, appModule_id dibutuhkan).' },
@@ -39,71 +39,78 @@ async function handleSsoValidation(token, roleId, appModuleId) {
     );
   }
 
-  const introspectUrl = getIntrospectUrl();
-  const clientId = (process.env.SSO_CLIENT_ID || 'a4ac8237-41ff-4a6e-8fc3-c365115455c3').trim();
-  const clientSecret = (process.env.SSO_CLIENT_SECRET || 'oPVaTLrsUMD9Nl6YtEaw87ON0P8dcv2oOxICC29X7KEsld0kVnuV3YsN3WAapcGB').trim();
+  let eportalUser = directEportalUser;
 
-  // 1. Verifikasi token ke E-Portal menggunakan axios dengan SSL bypass & timeout
-  let ssoRes;
-  try {
-    ssoRes = await axios.post(
-      introspectUrl,
-      {},
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-SSO-Client-ID': clientId,
-          'X-SSO-Client-Secret': clientSecret,
-          Authorization: `Bearer ${token}`,
+  // 1. Jika belum ada eportalUser dari client fallback, lakukan verifikasi via server
+  if (!eportalUser) {
+    const introspectUrl = getIntrospectUrl();
+    const clientId = (process.env.SSO_CLIENT_ID || 'a4ac8237-41ff-4a6e-8fc3-c365115455c3').trim();
+    const clientSecret = (process.env.SSO_CLIENT_SECRET || 'oPVaTLrsUMD9Nl6YtEaw87ON0P8dcv2oOxICC29X7KEsld0kVnuV3YsN3WAapcGB').trim();
+
+    let ssoRes;
+    try {
+      ssoRes = await axios.post(
+        introspectUrl,
+        {},
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-SSO-Client-ID': clientId,
+            'X-SSO-Client-Secret': clientSecret,
+            Authorization: `Bearer ${token}`,
+          },
+          httpsAgent,
+          timeout: 4000, // 4 detik timeout agar cepat dialihkan ke client-fallback jika firewall server memblokir
+          validateStatus: () => true,
+        }
+      );
+    } catch (netErr) {
+      console.error('[SSO Error] Server VPS gagal menghubungi E-Portal:', introspectUrl, netErr.message);
+      const detailMsg = netErr.cause?.message || netErr.message || 'Network error';
+      const errorCode = netErr.code || netErr.cause?.code || '';
+      return NextResponse.json(
+        {
+          status: 502,
+          success: false,
+          fallback_client: true,
+          message: `Server VPS tidak dapat menjangkau E-Portal (${errorCode || 'TIMEOUT'}): ${detailMsg}`,
+          targetUrl: introspectUrl,
         },
-        httpsAgent,
-        timeout: 15000,
-        validateStatus: () => true, // Tangkap semua HTTP status tanpa melempar exception
-      }
-    );
-  } catch (netErr) {
-    console.error('[SSO Error] Gagal menghubungi server E-Portal:', introspectUrl, netErr.message);
-    const detailMsg = netErr.cause?.message || netErr.message || 'Network error';
-    const errorCode = netErr.code || netErr.cause?.code || '';
-    return NextResponse.json(
-      {
-        status: 502,
-        success: false,
-        message: `Gagal menghubungi server E-Portal (${errorCode || 'NETWORK_ERROR'}): ${detailMsg}`,
-        targetUrl: introspectUrl,
-      },
-      { status: 502 }
-    );
+        { status: 502 }
+      );
+    }
+
+    const eportalData = ssoRes.data;
+
+    // Jika E-Portal mengembalikan halaman HTML (misal error 502/504/404 dari Nginx)
+    if (typeof eportalData === 'string' || !eportalData) {
+      console.error('[SSO Error] Respons E-Portal bukan JSON valid:', ssoRes.status);
+      return NextResponse.json(
+        {
+          status: 502,
+          success: false,
+          fallback_client: true,
+          message: `Server E-Portal mengembalikan HTTP ${ssoRes.status} (bukan JSON).`,
+          targetUrl: introspectUrl,
+        },
+        { status: 502 }
+      );
+    }
+
+    if (ssoRes.status !== 200 || eportalData.status !== 200 || !eportalData.valid) {
+      return NextResponse.json(
+        {
+          status: 401,
+          success: false,
+          message: eportalData.message || 'Token SSO E-Portal tidak valid atau telah kedaluwarsa.',
+        },
+        { status: 401 }
+      );
+    }
+
+    eportalUser = eportalData.user || {};
   }
 
-  const eportalData = ssoRes.data;
-
-  // Jika E-Portal mengembalikan halaman HTML (misal error 502/504/404 dari Nginx)
-  if (typeof eportalData === 'string' || !eportalData) {
-    console.error('[SSO Error] Respons E-Portal bukan JSON valid:', ssoRes.status, typeof eportalData === 'string' ? eportalData.slice(0, 300) : eportalData);
-    return NextResponse.json(
-      {
-        status: 502,
-        success: false,
-        message: `Server E-Portal mengembalikan HTTP ${ssoRes.status} (bukan JSON).`,
-        targetUrl: introspectUrl,
-      },
-      { status: 502 }
-    );
-  }
-
-  if (ssoRes.status !== 200 || eportalData.status !== 200 || !eportalData.valid) {
-    return NextResponse.json(
-      {
-        status: 401,
-        success: false,
-        message: eportalData.message || 'Token SSO E-Portal tidak valid atau telah kedaluwarsa.',
-      },
-      { status: 401 }
-    );
-  }
-
-  const eportalUser = eportalData.user || {};
   const email = (eportalUser.email || '').trim().toLowerCase();
   const username = (
     eportalUser.username ||
@@ -116,7 +123,7 @@ async function handleSsoValidation(token, roleId, appModuleId) {
   // 1b. Logika Pemetaan Role E-Portal:
   // - Role bertaraf Super Admin di E-Portal -> role 'superadmin' di Presensi
   // - Seluruh role lainnya (Dosen, Pegawai, Tendik, Dekan, dll.) -> role 'admin' (Operator Kegiatan)
-  const roleObj = eportalUser.role || eportalData.role || eportalData.access?.role || {};
+  const roleObj = eportalUser.role || {};
   const roleName = typeof roleObj === 'string'
     ? roleObj.toLowerCase()
     : (roleObj.name || roleObj.role_name || roleObj.nama || '').toString().toLowerCase();
@@ -241,8 +248,9 @@ export async function POST(request) {
     const token = body.token || searchParams.get('token');
     const roleId = body.role_id || searchParams.get('role_id');
     const appModuleId = body.appModule_id || searchParams.get('appModule_id');
+    const directUser = body.eportalUser || null;
 
-    return handleSsoValidation(token, roleId, appModuleId);
+    return handleSsoValidation(token, roleId, appModuleId, directUser);
   } catch (err) {
     return NextResponse.json(
       { status: 500, success: false, message: 'Internal Server Error: ' + err.message },
