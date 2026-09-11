@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
+import https from 'https';
+import axios from 'axios';
 import {
   SESSION_COOKIE_NAME,
   SESSION_MAX_AGE,
@@ -7,6 +9,11 @@ import {
 } from '@/lib/auth';
 import { getPool, ensureSchema } from '@/lib/db';
 import { hashPassword } from '@/lib/password';
+
+// Agent HTTPS dengan toleransi SSL sertifikat agar tidak diblokir oleh strict Node.js TLS
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: false,
+});
 
 function getIntrospectUrl() {
   const rawUrl = process.env.EPORTAL_URL || 'https://eportal.uika-bogor.ac.id/eportal-api';
@@ -33,34 +40,59 @@ async function handleSsoValidation(token, roleId, appModuleId) {
   }
 
   const introspectUrl = getIntrospectUrl();
-  const clientId = process.env.SSO_CLIENT_ID || 'a4ac8237-41ff-4a6e-8fc3-c365115455c3';
-  const clientSecret = process.env.SSO_CLIENT_SECRET || 'oPVaTLrsUMD9Nl6YtEaw87ON0P8dcv2oOxICC29X7KEsld0kVnuV3YsN3WAapcGB';
+  const clientId = (process.env.SSO_CLIENT_ID || 'a4ac8237-41ff-4a6e-8fc3-c365115455c3').trim();
+  const clientSecret = (process.env.SSO_CLIENT_SECRET || 'oPVaTLrsUMD9Nl6YtEaw87ON0P8dcv2oOxICC29X7KEsld0kVnuV3YsN3WAapcGB').trim();
 
-  // 1. Verifikasi token ke E-Portal
-  let eportalData;
+  // 1. Verifikasi token ke E-Portal menggunakan axios dengan SSL bypass & timeout
+  let ssoRes;
   try {
-    const ssoRes = await fetch(introspectUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-SSO-Client-ID': clientId,
-        'X-SSO-Client-Secret': clientSecret,
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({}),
-      cache: 'no-store',
-    });
-
-    eportalData = await ssoRes.json();
+    ssoRes = await axios.post(
+      introspectUrl,
+      {},
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-SSO-Client-ID': clientId,
+          'X-SSO-Client-Secret': clientSecret,
+          Authorization: `Bearer ${token}`,
+        },
+        httpsAgent,
+        timeout: 15000,
+        validateStatus: () => true, // Tangkap semua HTTP status tanpa melempar exception
+      }
+    );
   } catch (netErr) {
-    console.error('[SSO Error] Gagal menghubungi server E-Portal:', netErr);
+    console.error('[SSO Error] Gagal menghubungi server E-Portal:', introspectUrl, netErr.message);
+    const detailMsg = netErr.cause?.message || netErr.message || 'Network error';
+    const errorCode = netErr.code || netErr.cause?.code || '';
     return NextResponse.json(
-      { status: 502, success: false, message: 'Gagal menghubungi server E-Portal untuk verifikasi SSO.' },
+      {
+        status: 502,
+        success: false,
+        message: `Gagal menghubungi server E-Portal (${errorCode || 'NETWORK_ERROR'}): ${detailMsg}`,
+        targetUrl: introspectUrl,
+      },
       { status: 502 }
     );
   }
 
-  if (eportalData.status !== 200 || !eportalData.valid) {
+  const eportalData = ssoRes.data;
+
+  // Jika E-Portal mengembalikan halaman HTML (misal error 502/504/404 dari Nginx)
+  if (typeof eportalData === 'string' || !eportalData) {
+    console.error('[SSO Error] Respons E-Portal bukan JSON valid:', ssoRes.status, typeof eportalData === 'string' ? eportalData.slice(0, 300) : eportalData);
+    return NextResponse.json(
+      {
+        status: 502,
+        success: false,
+        message: `Server E-Portal mengembalikan HTTP ${ssoRes.status} (bukan JSON).`,
+        targetUrl: introspectUrl,
+      },
+      { status: 502 }
+    );
+  }
+
+  if (ssoRes.status !== 200 || eportalData.status !== 200 || !eportalData.valid) {
     return NextResponse.json(
       {
         status: 401,
@@ -109,7 +141,7 @@ async function handleSsoValidation(token, roleId, appModuleId) {
         );
       }
 
-      // Perbarui nama atau email jika ada perubahan dari E-Portal
+      // Perbarui nama atau email jika ada pembaruan dari E-Portal
       await pool.query(
         `UPDATE users SET nama = ?, email = COALESCE(email, ?) WHERE id = ?`,
         [nama, email || null, dbUser.id]
