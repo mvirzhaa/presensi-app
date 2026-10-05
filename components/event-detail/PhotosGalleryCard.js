@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { apiUrl } from '@/lib/api';
 
-export default function PhotosGalleryCard({ eventId, photos, onUpload, onDelete, uploading, dict }) {
+export default function PhotosGalleryCard({ eventId, photos, onUpload, onDelete, uploading, dict, canEdit = true }) {
   const t = dict.adminDetail;
   const photoInputRef = useRef(null);
   const [activePreviewImage, setActivePreviewImage] = useState(null);
@@ -18,27 +18,29 @@ export default function PhotosGalleryCard({ eventId, photos, onUpload, onDelete,
           <p className="text-xs text-slate-500 mt-0.5">{t.photosSubtitle}</p>
         </div>
 
-        <div>
-          <input
-            ref={photoInputRef}
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={(e) => {
-              onUpload(e);
-              if (photoInputRef.current) photoInputRef.current.value = '';
-            }}
-            className="hidden"
-            id="photo-upload-input"
-          />
-          <button
-            onClick={() => photoInputRef.current?.click()}
-            disabled={uploading}
-            className="px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
-          >
-            {uploading ? t.uploading : `+ ${t.uploadPhoto}`}
-          </button>
-        </div>
+        {canEdit && (
+          <div>
+            <input
+              ref={photoInputRef}
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={(e) => {
+                onUpload(e);
+                if (photoInputRef.current) photoInputRef.current.value = '';
+              }}
+              className="hidden"
+              id="photo-upload-input"
+            />
+            <button
+              onClick={() => photoInputRef.current?.click()}
+              disabled={uploading}
+              className="px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+            >
+              {uploading ? t.uploading : `+ ${t.uploadPhoto}`}
+            </button>
+          </div>
+        )}
       </div>
 
       {photos.length === 0 ? (
@@ -70,12 +72,14 @@ export default function PhotosGalleryCard({ eventId, photos, onUpload, onDelete,
                   >
                     🔍 Lihat
                   </button>
-                  <button
-                    onClick={() => onDelete(p.id)}
-                    className="text-[11px] text-red-300 hover:text-red-100 bg-red-600/70 hover:bg-red-600 px-2 py-0.5 rounded backdrop-blur-xs"
-                  >
-                    {t.delete}
-                  </button>
+                  {canEdit && (
+                    <button
+                      onClick={() => onDelete(p.id)}
+                      className="text-[11px] text-red-300 hover:text-red-100 bg-red-600/70 hover:bg-red-600 px-2 py-0.5 rounded backdrop-blur-xs"
+                    >
+                      {t.delete}
+                    </button>
+                  )}
                 </div>
               </div>
             );

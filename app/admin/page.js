@@ -14,6 +14,7 @@ export default function AdminPage() {
   const t = dict.adminList;
 
   const [events, setEvents] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -44,7 +45,10 @@ export default function AdminPage() {
         return;
       }
       const json = await res.json();
-      if (json.success) setEvents(json.data);
+      if (json.success) {
+        setEvents(json.data);
+        if (json.currentUser) setCurrentUser(json.currentUser);
+      }
     } catch {
       setError(t.errorGeneric);
     } finally {
@@ -231,7 +235,12 @@ export default function AdminPage() {
           {loading ? (
             <p className="text-sm text-slate-400">{dict.common.loading}</p>
           ) : (
-            <EventsTable events={events} />
+            <EventsTable
+              events={events}
+              currentUser={currentUser}
+              onEventUpdated={loadEvents}
+              onEventDeleted={loadEvents}
+            />
           )}
         </div>
       </div>

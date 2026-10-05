@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getPool } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
+import { deleteEventUploadDir } from '@/lib/storage';
 
 const PUBLIC_FIELDS = `
   e.public_id, e.user_id, e.nama_event, e.tanggal_event, e.waktu_event, e.lokasi_event, e.pic_event,
@@ -29,7 +30,27 @@ export async function GET(request, { params }) {
       );
     }
 
-    return NextResponse.json({ success: true, data: rows[0] });
+    const session = await getSessionFromRequest(request);
+    const event = rows[0];
+    const canEdit = session
+      ? session.role === 'superadmin' || (event.user_id != null && event.user_id === session.id)
+      : false;
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...event,
+        can_edit: canEdit,
+      },
+      currentUser: session
+        ? {
+            id: session.id,
+            username: session.username,
+            nama: session.nama,
+            role: session.role,
+          }
+        : null,
+    });
   } catch (err) {
     console.error(err);
     return NextResponse.json(
@@ -57,7 +78,7 @@ export async function PATCH(request, { params }) {
     }
 
     const event = existing[0];
-    const isOwner = event.user_id === session.id;
+    const isOwner = event.user_id != null && event.user_id === session.id;
     const isSuperAdmin = session.role === 'superadmin';
 
     if (!isOwner && !isSuperAdmin) {
@@ -71,6 +92,10 @@ export async function PATCH(request, { params }) {
     const fields = [];
     const values = [];
 
+    if (isSuperAdmin && 'user_id' in body) {
+      fields.push('user_id = ?');
+      values.push(body.user_id ? Number(body.user_id) : null);
+    }
     if (typeof body.require_location === 'boolean') {
       fields.push('require_location = ?');
       values.push(body.require_location ? 1 : 0);
@@ -143,7 +168,13 @@ export async function PATCH(request, { params }) {
       [id]
     );
 
-    return NextResponse.json({ success: true, data: rows[0] });
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...rows[0],
+        can_edit: true,
+      },
+    });
   } catch (err) {
     console.error(err);
     return NextResponse.json(
@@ -170,7 +201,7 @@ export async function DELETE(request, { params }) {
     }
 
     const event = existing[0];
-    const isOwner = event.user_id === session.id;
+    const isOwner = event.user_id != null && event.user_id === session.id;
     const isSuperAdmin = session.role === 'superadmin';
 
     if (!isOwner && !isSuperAdmin) {
@@ -179,6 +210,9 @@ export async function DELETE(request, { params }) {
         { status: 403 }
       );
     }
+
+    // Hapus file fisik di disk jika ada
+    deleteEventUploadDir(event.id);
 
     await pool.query('DELETE FROM events WHERE public_id = ?', [id]);
     return NextResponse.json({ success: true });
@@ -190,3 +224,4 @@ export async function DELETE(request, { params }) {
     );
   }
 }
+

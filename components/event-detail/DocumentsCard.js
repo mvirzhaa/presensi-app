@@ -4,7 +4,7 @@ import { useRef } from 'react';
 import { apiUrl } from '@/lib/api';
 import { formatFileSize } from '@/lib/formatters';
 
-export default function DocumentsCard({ eventId, documents, onUpload, onDelete, uploading, dict }) {
+export default function DocumentsCard({ eventId, documents, onUpload, onDelete, uploading, dict, canEdit = true }) {
   const t = dict.adminDetail;
   const docInputRef = useRef(null);
 
@@ -18,27 +18,29 @@ export default function DocumentsCard({ eventId, documents, onUpload, onDelete, 
           <p className="text-xs text-slate-500 mt-0.5">{t.documentsSubtitle}</p>
         </div>
 
-        <div>
-          <input
-            ref={docInputRef}
-            type="file"
-            multiple
-            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
-            onChange={(e) => {
-              onUpload(e);
-              if (docInputRef.current) docInputRef.current.value = '';
-            }}
-            className="hidden"
-            id="document-upload-input"
-          />
-          <button
-            onClick={() => docInputRef.current?.click()}
-            disabled={uploading}
-            className="px-4 py-2 bg-slate-800 text-white text-xs font-medium rounded-lg hover:bg-slate-900 transition disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
-          >
-            {uploading ? t.uploading : `+ ${t.uploadDocument}`}
-          </button>
-        </div>
+        {canEdit && (
+          <div>
+            <input
+              ref={docInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
+              onChange={(e) => {
+                onUpload(e);
+                if (docInputRef.current) docInputRef.current.value = '';
+              }}
+              className="hidden"
+              id="document-upload-input"
+            />
+            <button
+              onClick={() => docInputRef.current?.click()}
+              disabled={uploading}
+              className="px-4 py-2 bg-slate-800 text-white text-xs font-medium rounded-lg hover:bg-slate-900 transition disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+            >
+              {uploading ? t.uploading : `+ ${t.uploadDocument}`}
+            </button>
+          </div>
+        )}
       </div>
 
       {documents.length === 0 ? (
@@ -71,12 +73,14 @@ export default function DocumentsCard({ eventId, documents, onUpload, onDelete, 
                 >
                   {t.download}
                 </a>
-                <button
-                  onClick={() => onDelete(f.id)}
-                  className="px-2.5 py-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 text-xs rounded-lg font-medium transition"
-                >
-                  {t.delete}
-                </button>
+                {canEdit && (
+                  <button
+                    onClick={() => onDelete(f.id)}
+                    className="px-2.5 py-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 text-xs rounded-lg font-medium transition"
+                  >
+                    {t.delete}
+                  </button>
+                )}
               </div>
             </div>
           ))}

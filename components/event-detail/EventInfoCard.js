@@ -4,7 +4,16 @@ import { apiUrl } from '@/lib/api';
 import { formatDate } from '@/lib/formatters';
 import { getGoogleMapsUrl } from '@/lib/geo';
 
-export default function EventInfoCard({ event, presensiUrl, dict, lang, id }) {
+export default function EventInfoCard({
+  event,
+  presensiUrl,
+  dict,
+  lang,
+  id,
+  canEdit = true,
+  onEditEvent,
+  onDeleteEvent,
+}) {
   const t = dict.adminDetail;
 
   function copyLink() {
@@ -64,14 +73,40 @@ export default function EventInfoCard({ event, presensiUrl, dict, lang, id }) {
           </button>
         </div>
 
-        <div className="pt-2 flex flex-wrap gap-2">
+        <div className="pt-2 flex flex-wrap gap-2 items-center">
           <a
             href={apiUrl(`/api/events/${id}/export`)}
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 transition shadow-sm font-medium"
           >
             📥 {t.exportPdf}
           </a>
+
+          {canEdit && (
+            <>
+              <button
+                type="button"
+                onClick={onEditEvent}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition shadow-sm font-medium"
+              >
+                ✏️ {t.editEvent || 'Edit Data Event'}
+              </button>
+              <button
+                type="button"
+                onClick={onDeleteEvent}
+                className="inline-flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-sm hover:bg-red-100 transition font-medium"
+              >
+                🗑️ {t.deleteEvent || 'Hapus Event'}
+              </button>
+            </>
+          )}
         </div>
+
+        {!canEdit && (
+          <div className="mt-3 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 flex items-center gap-2">
+            <span>🔒</span>
+            <span>{t.readOnlyNotice || 'Anda dalam mode lihat saja. Hanya operator acara ini atau Super Admin yang dapat mengubah data.'}</span>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center justify-center">

@@ -1,6 +1,6 @@
 'use client';
 
-export default function NotulensiCard({ notulensi, onChange, onSave, saving, saved, dict }) {
+export default function NotulensiCard({ notulensi, onChange, onSave, saving, saved, dict, canEdit = true }) {
   const t = dict.adminDetail;
 
   return (
@@ -13,28 +13,33 @@ export default function NotulensiCard({ notulensi, onChange, onSave, saving, sav
           <p className="text-xs text-slate-500 mt-0.5">{t.notulensiSubtitle}</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {saved && (
-            <span className="text-xs text-emerald-600 font-medium bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-              ✓ {t.notulensiSaved}
-            </span>
-          )}
-          <button
-            onClick={onSave}
-            disabled={saving}
-            className="px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 shadow-sm"
-          >
-            {saving ? dict.userManagement.saving : t.saveNotulensi}
-          </button>
-        </div>
+        {canEdit && (
+          <div className="flex items-center gap-2">
+            {saved && (
+              <span className="text-xs text-emerald-600 font-medium bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                ✓ {t.notulensiSaved}
+              </span>
+            )}
+            <button
+              onClick={onSave}
+              disabled={saving}
+              className="px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 shadow-sm"
+            >
+              {saving ? dict.userManagement.saving : t.saveNotulensi}
+            </button>
+          </div>
+        )}
       </div>
 
       <textarea
         rows={7}
         value={notulensi}
+        readOnly={!canEdit}
         onChange={(e) => onChange(e.target.value)}
         placeholder={t.notulensiPlaceholder}
-        className="w-full border border-slate-300 rounded-xl p-3.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 leading-relaxed font-normal"
+        className={`w-full border border-slate-300 rounded-xl p-3.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 leading-relaxed font-normal ${
+          !canEdit ? 'bg-slate-50 cursor-not-allowed' : ''
+        }`}
       />
     </div>
   );

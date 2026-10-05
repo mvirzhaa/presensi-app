@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '@/components/LanguageProvider';
 import QrModal from '@/components/QrModal';
+import EditEventModal from '@/components/EditEventModal';
 import { apiUrl } from '@/lib/api';
 import { formatTime, formatDate } from '@/lib/formatters';
 
@@ -19,7 +20,7 @@ function SortIcon({ active, direction }) {
 }
 
 
-export default function EventsTable({ events }) {
+export default function EventsTable({ events, currentUser, onEventUpdated, onEventDeleted }) {
   const { dict, lang } = useLanguage();
   const t = dict.adminList;
 
@@ -31,6 +32,8 @@ export default function EventsTable({ events }) {
   const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
   const [qrEvent, setQrEvent] = useState(null);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   const hasCreator = useMemo(() => events.some((e) => e.creator_nama), [events]);
 
@@ -116,6 +119,28 @@ export default function EventsTable({ events }) {
     );
   }
 
+  async function handleDelete(ev) {
+    const confirmMsg = t.confirmDeleteEvent || 'Yakin ingin menghapus event ini? Semua data peserta dan lampiran kegiatan ini akan ikut terhapus.';
+    if (!window.confirm(confirmMsg)) return;
+
+    setDeletingId(ev.public_id);
+    try {
+      const res = await fetch(apiUrl(`/api/events/${ev.public_id}`), {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        alert(json.message || t.deleteFailed || 'Gagal menghapus event');
+        return;
+      }
+      onEventDeleted?.(ev.public_id);
+    } catch {
+      alert(t.deleteFailed || 'Gagal menghapus event');
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   const dateLocale = lang === 'en' ? 'en-US' : 'id-ID';
   const from = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, totalItems);
@@ -177,52 +202,85 @@ export default function EventsTable({ events }) {
                   {hasCreator && <Th label={t.colCreator} sortKeyName="creator_nama" />}
                   <Th label={t.colParticipants} sortKeyName="jumlah_peserta" className="text-right" />
                   <th className="py-2 pr-3 text-center">{t.colQr}</th>
+                  <th className="py-2 pr-3 text-center whitespace-nowrap">{t.colActions || 'Aksi'}</th>
                 </tr>
               </thead>
               <tbody>
-                {pageItems.map((ev, idx) => (
-                  <tr key={ev.public_id} className="border-b border-slate-100 hover:bg-slate-50 transition">
-                    <td className="py-2.5 pr-3 text-slate-400">{(page - 1) * pageSize + idx + 1}</td>
-                    <td className="py-2.5 pr-3">
-                      <Link href={`/admin/event/${ev.public_id}`} className="font-medium text-slate-800 hover:text-indigo-600 transition">
-                        {ev.nama_event}
-                      </Link>
-                    </td>
-                    <td className="py-2.5 pr-3 text-slate-600 whitespace-nowrap">
-                      {formatDate(ev.tanggal_event, dateLocale)}
-                    </td>
-
-                    <td className="py-2.5 pr-3 text-slate-600 whitespace-nowrap">
-                      {formatTime(ev.waktu_event) || t.noTime}
-                    </td>
-                    <td className="py-2.5 pr-3 text-slate-600">{ev.lokasi_event}</td>
-                    <td className="py-2.5 pr-3 text-slate-600">{ev.pic_event}</td>
-                    {hasCreator && (
-                      <td className="py-2.5 pr-3 text-slate-500 text-xs">
-                        <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-medium">
-                          {ev.creator_nama || ev.creator_username || '-'}
-                        </span>
+                {pageItems.map((ev, idx) => {
+                  const canEdit = ev.can_edit ?? (currentUser?.role === 'superadmin' || (ev.user_id != null && ev.user_id === currentUser?.id));
+                  return (
+                    <tr key={ev.public_id} className="border-b border-slate-100 hover:bg-slate-50 transition">
+                      <td className="py-2.5 pr-3 text-slate-400">{(page - 1) * pageSize + idx + 1}</td>
+                      <td className="py-2.5 pr-3">
+                        <Link href={`/admin/event/${ev.public_id}`} className="font-medium text-slate-800 hover:text-indigo-600 transition">
+                          {ev.nama_event}
+                        </Link>
                       </td>
-                    )}
-                    <td className="py-2.5 pr-3 text-right">
-                      <span className="text-indigo-600 font-medium">{ev.jumlah_peserta}</span>
-                    </td>
-                    <td className="py-2.5 pr-3">
-                      <button
-                        onClick={() => setQrEvent(ev)}
-                        className="block mx-auto w-10 h-10 rounded-md border border-slate-200 overflow-hidden hover:ring-2 hover:ring-indigo-300 transition"
-                        title={t.colQr}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={apiUrl(`/api/events/${ev.public_id}/qrcode`)}
-                          alt="QR"
-                          className="w-full h-full object-cover"
-                        />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      <td className="py-2.5 pr-3 text-slate-600 whitespace-nowrap">
+                        {formatDate(ev.tanggal_event, dateLocale)}
+                      </td>
+
+                      <td className="py-2.5 pr-3 text-slate-600 whitespace-nowrap">
+                        {formatTime(ev.waktu_event) || t.noTime}
+                      </td>
+                      <td className="py-2.5 pr-3 text-slate-600">{ev.lokasi_event}</td>
+                      <td className="py-2.5 pr-3 text-slate-600">{ev.pic_event}</td>
+                      {hasCreator && (
+                        <td className="py-2.5 pr-3 text-slate-500 text-xs">
+                          <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-medium">
+                            {ev.creator_nama || ev.creator_username || '-'}
+                          </span>
+                        </td>
+                      )}
+                      <td className="py-2.5 pr-3 text-right">
+                        <span className="text-indigo-600 font-medium">{ev.jumlah_peserta}</span>
+                      </td>
+                      <td className="py-2.5 pr-3">
+                        <button
+                          onClick={() => setQrEvent(ev)}
+                          className="block mx-auto w-10 h-10 rounded-md border border-slate-200 overflow-hidden hover:ring-2 hover:ring-indigo-300 transition"
+                          title={t.colQr}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={apiUrl(`/api/events/${ev.public_id}/qrcode`)}
+                            alt="QR"
+                            className="w-full h-full object-cover"
+                          />
+                        </button>
+                      </td>
+                      <td className="py-2.5 pr-3 text-center whitespace-nowrap">
+                        {canEdit ? (
+                          <div className="inline-flex items-center gap-1.5 justify-center">
+                            <button
+                              onClick={() => setEditingEvent(ev)}
+                              className="px-2.5 py-1 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 border border-slate-200 hover:border-indigo-200 rounded-md text-xs font-medium transition flex items-center gap-1"
+                              title={t.edit || 'Edit'}
+                            >
+                              <span>✏️</span>
+                              <span>{t.edit || 'Edit'}</span>
+                            </button>
+                            <button
+                              onClick={() => handleDelete(ev)}
+                              disabled={deletingId === ev.public_id}
+                              className="px-2 py-1 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 border border-slate-200 hover:border-red-200 rounded-md text-xs font-medium transition disabled:opacity-40"
+                              title={t.delete || 'Hapus'}
+                            >
+                              <span>🗑️</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <span
+                            className="text-slate-300 text-xs px-2 py-1 select-none"
+                            title={t.noEditPermission || 'Hanya operator acara ini atau Super Admin yang dapat mengedit'}
+                          >
+                            🔒
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -274,6 +332,18 @@ export default function EventsTable({ events }) {
         qrUrl={qrEvent ? apiUrl(`/api/events/${qrEvent.public_id}/qrcode`) : ''}
         eventName={qrEvent?.nama_event}
       />
+
+      <EditEventModal
+        isOpen={!!editingEvent}
+        onClose={() => setEditingEvent(null)}
+        event={editingEvent}
+        currentUser={currentUser}
+        dict={dict}
+        onSaved={() => {
+          onEventUpdated?.();
+        }}
+      />
     </div>
   );
 }
+

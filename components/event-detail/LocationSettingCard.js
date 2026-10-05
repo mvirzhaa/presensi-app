@@ -11,6 +11,7 @@ export default function LocationSettingCard({
   toggling,
   onUpdateEvent,
   dict,
+  canEdit = true,
 }) {
   const t = dict.adminDetail;
   const isFixed = !!event?.fix_location;
@@ -69,17 +70,19 @@ export default function LocationSettingCard({
             {requireLocation ? t.locationOn : t.locationOff}
           </p>
         </div>
-        <button
-          onClick={onToggle}
-          disabled={toggling || saving}
-          className={`px-4 py-2 rounded-lg text-xs font-medium transition disabled:opacity-50 ${
-            requireLocation
-              ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              : 'bg-indigo-600 text-white hover:bg-indigo-700'
-          }`}
-        >
-          {requireLocation ? t.locationToggleOff : t.locationToggleOn}
-        </button>
+        {canEdit && (
+          <button
+            onClick={onToggle}
+            disabled={toggling || saving}
+            className={`px-4 py-2 rounded-lg text-xs font-medium transition disabled:opacity-50 ${
+              requireLocation
+                ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                : 'bg-indigo-600 text-white hover:bg-indigo-700'
+            }`}
+          >
+            {requireLocation ? t.locationToggleOff : t.locationToggleOn}
+          </button>
+        )}
       </div>
 
       {/* 2. Pengaturan Fix Lokasi (Geofencing Dinamis) */}
@@ -101,17 +104,19 @@ export default function LocationSettingCard({
             </p>
           </div>
 
-          <button
-            onClick={handleToggleFixLocation}
-            disabled={saving || toggling}
-            className={`px-4 py-2 rounded-lg text-xs font-medium transition disabled:opacity-50 ${
-              isFixed
-                ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
-                : 'bg-emerald-600 text-white hover:bg-emerald-700'
-            }`}
-          >
-            {isFixed ? t.geofenceToggleOff : t.geofenceToggleOn}
-          </button>
+          {canEdit && (
+            <button
+              onClick={handleToggleFixLocation}
+              disabled={saving || toggling}
+              className={`px-4 py-2 rounded-lg text-xs font-medium transition disabled:opacity-50 ${
+                isFixed
+                  ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
+                  : 'bg-emerald-600 text-white hover:bg-emerald-700'
+              }`}
+            >
+              {isFixed ? t.geofenceToggleOff : t.geofenceToggleOn}
+            </button>
+          )}
         </div>
 
         {/* Info Ringkas Lokasi Saat Ini */}
@@ -143,20 +148,22 @@ export default function LocationSettingCard({
               >
                 📍 {t.openGoogleMaps} ↗
               </a>
-              <button
-                type="button"
-                onClick={() => {
-                  setPickerState({
-                    target_latitude: event?.target_latitude ?? '',
-                    target_longitude: event?.target_longitude ?? '',
-                    radius_meters: event?.radius_meters ?? 50,
-                  });
-                  setIsEditing(true);
-                }}
-                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition shadow-sm"
-              >
-                ✏️ {t.editLocation}
-              </button>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPickerState({
+                      target_latitude: event?.target_latitude ?? '',
+                      target_longitude: event?.target_longitude ?? '',
+                      radius_meters: event?.radius_meters ?? 50,
+                    });
+                    setIsEditing(true);
+                  }}
+                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition shadow-sm"
+                >
+                  ✏️ {t.editLocation}
+                </button>
+              )}
             </div>
           </div>
         ) : (

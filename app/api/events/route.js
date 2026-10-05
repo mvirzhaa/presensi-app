@@ -5,7 +5,7 @@ import { generatePublicId } from '@/lib/id';
 
 // Kolom yang aman ditampilkan ke client
 const PUBLIC_FIELDS = `
-  e.public_id, e.nama_event, e.tanggal_event, e.waktu_event, e.lokasi_event, e.pic_event,
+  e.public_id, e.user_id, e.nama_event, e.tanggal_event, e.waktu_event, e.lokasi_event, e.pic_event,
   e.require_location, e.fix_location, e.target_latitude, e.target_longitude, e.radius_meters,
   e.notulensi, e.created_at,
   u.nama AS creator_nama, u.username AS creator_username
@@ -41,7 +41,22 @@ export async function GET(request) {
     query += ` ORDER BY e.tanggal_event DESC, e.id DESC`;
 
     const [rows] = await pool.query(query, params);
-    return NextResponse.json({ success: true, data: rows, isSuperAdmin });
+    const eventsWithPerms = rows.map((ev) => ({
+      ...ev,
+      can_edit: isSuperAdmin || (ev.user_id != null && ev.user_id === session.id),
+    }));
+
+    return NextResponse.json({
+      success: true,
+      data: eventsWithPerms,
+      isSuperAdmin,
+      currentUser: {
+        id: session.id,
+        username: session.username,
+        nama: session.nama,
+        role: session.role,
+      },
+    });
   } catch (err) {
     console.error(err);
     return NextResponse.json(
@@ -72,6 +87,7 @@ export async function POST(request) {
       target_longitude,
       radius_meters,
       notulensi,
+      user_id,
     } = body;
 
     if (!nama_event || !tanggal_event || !lokasi_event || !pic_event) {
@@ -80,6 +96,9 @@ export async function POST(request) {
         { status: 400 }
       );
     }
+
+    const isSuperAdmin = session.role === 'superadmin';
+    const targetUserId = isSuperAdmin && user_id ? Number(user_id) : (session.id || null);
 
     const requireLocationValue = require_location === false ? 0 : 1;
     const fixLocationValue = fix_location ? 1 : 0;
@@ -106,7 +125,7 @@ export async function POST(request) {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         publicId,
-        session.id || null,
+        targetUserId,
         nama_event,
         tanggal_event,
         waktuEventValue,

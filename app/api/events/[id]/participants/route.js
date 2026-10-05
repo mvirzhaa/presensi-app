@@ -118,3 +118,105 @@ export async function POST(request, { params }) {
     );
   }
 }
+
+// PATCH /api/events/:publicId/participants -> update data peserta (hanya operator event & superadmin)
+export async function PATCH(request, { params }) {
+  const session = await getSessionFromRequest(request);
+  if (!session) {
+    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { id } = params;
+    const pool = getPool();
+
+    const [eventRows] = await pool.query('SELECT id, user_id FROM events WHERE public_id = ?', [id]);
+    if (eventRows.length === 0) {
+      return NextResponse.json({ success: false, message: 'Event tidak ditemukan' }, { status: 404 });
+    }
+
+    const event = eventRows[0];
+    const isAuthorized = session.role === 'superadmin' || (event.user_id != null && event.user_id === session.id);
+    if (!isAuthorized) {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden: Anda tidak memiliki akses ke event ini' },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const { participantId, nama, asal_instansi, jabatan } = body;
+
+    if (!participantId || !nama || !asal_instansi || !jabatan) {
+      return NextResponse.json(
+        { success: false, message: 'Field nama, instansi, dan jabatan wajib diisi' },
+        { status: 400 }
+      );
+    }
+
+    await pool.query(
+      `UPDATE participants 
+       SET nama = ?, asal_instansi = ?, jabatan = ?
+       WHERE id = ? AND event_id = ?`,
+      [nama.trim(), asal_instansi.trim(), jabatan.trim(), participantId, event.id]
+    );
+
+    const [rows] = await pool.query(
+      `SELECT id, nama, asal_instansi, jabatan, latitude, longitude, presensi_at
+       FROM participants
+       WHERE id = ? AND event_id = ?`,
+      [participantId, event.id]
+    );
+
+    return NextResponse.json({ success: true, data: rows[0] });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json(
+      { success: false, message: err.message },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/events/:publicId/participants?participantId=xxx -> hapus presensi peserta (hanya operator event & superadmin)
+export async function DELETE(request, { params }) {
+  const session = await getSessionFromRequest(request);
+  if (!session) {
+    return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { id } = params;
+    const { searchParams } = new URL(request.url);
+    const participantId = searchParams.get('participantId');
+
+    if (!participantId) {
+      return NextResponse.json({ success: false, message: 'ID peserta wajib disertakan' }, { status: 400 });
+    }
+
+    const pool = getPool();
+    const [eventRows] = await pool.query('SELECT id, user_id FROM events WHERE public_id = ?', [id]);
+    if (eventRows.length === 0) {
+      return NextResponse.json({ success: false, message: 'Event tidak ditemukan' }, { status: 404 });
+    }
+
+    const event = eventRows[0];
+    const isAuthorized = session.role === 'superadmin' || (event.user_id != null && event.user_id === session.id);
+    if (!isAuthorized) {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden: Anda tidak memiliki akses untuk menghapus peserta event ini' },
+        { status: 403 }
+      );
+    }
+
+    await pool.query('DELETE FROM participants WHERE id = ? AND event_id = ?', [participantId, event.id]);
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json(
+      { success: false, message: err.message },
+      { status: 500 }
+    );
+  }
+}
+

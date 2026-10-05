@@ -11,6 +11,7 @@ import NotulensiCard from '@/components/event-detail/NotulensiCard';
 import DocumentsCard from '@/components/event-detail/DocumentsCard';
 import PhotosGalleryCard from '@/components/event-detail/PhotosGalleryCard';
 import ParticipantsTable from '@/components/event-detail/ParticipantsTable';
+import EditEventModal from '@/components/EditEventModal';
 import { apiUrl } from '@/lib/api';
 
 export default function EventDetailPage() {
@@ -19,10 +20,12 @@ export default function EventDetailPage() {
   const { dict, lang } = useLanguage();
 
   const [event, setEvent] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [presensiUrl, setPresensiUrl] = useState('');
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Notulensi state
   const [notulensi, setNotulensi] = useState('');
@@ -44,6 +47,7 @@ export default function EventDetailPage() {
     if (json.success) {
       setEvent(json.data);
       setNotulensi(json.data.notulensi || '');
+      if (json.currentUser) setCurrentUser(json.currentUser);
     }
   }, [id, router]);
 
@@ -68,6 +72,17 @@ export default function EventDetailPage() {
       console.error('Error loading files:', err);
     }
   }, [id]);
+
+  useEffect(() => {
+    fetch(apiUrl('/api/auth/me'))
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success && data?.user) {
+          setCurrentUser(data.user);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
@@ -119,6 +134,25 @@ export default function EventDetailPage() {
       return json;
     } catch {
       alert('Terjadi kesalahan saat memperbarui event');
+    }
+  }
+
+  async function handleDeleteEvent() {
+    const confirmMsg = dict?.adminList?.confirmDeleteEvent || 'Yakin ingin menghapus event ini? Semua data peserta dan lampiran kegiatan ini akan ikut terhapus.';
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      const res = await fetch(apiUrl(`/api/events/${id}`), {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        router.push('/admin');
+      } else {
+        alert(json.message || dict?.adminList?.deleteFailed || 'Gagal menghapus event');
+      }
+    } catch {
+      alert(dict?.adminList?.deleteFailed || 'Terjadi kesalahan saat menghapus event');
     }
   }
 
@@ -194,6 +228,39 @@ export default function EventDetailPage() {
     }
   }
 
+  async function handleEditParticipant(data) {
+    const res = await fetch(apiUrl(`/api/events/${id}/participants`), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (res.ok && json.success) {
+      await loadParticipants();
+    } else {
+      throw new Error(json.message || 'Gagal memperbarui data peserta');
+    }
+  }
+
+  async function handleDeleteParticipant(participantId) {
+    const confirmMsg = dict?.adminDetail?.confirmDeleteParticipant || 'Yakin ingin menghapus peserta ini dari daftar presensi?';
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      const res = await fetch(apiUrl(`/api/events/${id}/participants?participantId=${participantId}`), {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        await loadParticipants();
+      } else {
+        alert(json.message || 'Gagal menghapus peserta');
+      }
+    } catch {
+      alert('Terjadi kesalahan jaringan');
+    }
+  }
+
   if (loading && !event) {
     return <main className="min-h-screen flex items-center justify-center text-slate-400">{dict.common.loading}</main>;
   }
@@ -202,6 +269,7 @@ export default function EventDetailPage() {
     return <main className="min-h-screen flex items-center justify-center text-slate-400">{dict.adminDetail.notFound}</main>;
   }
 
+  const canEdit = event?.can_edit ?? (currentUser?.role === 'superadmin' || (event?.user_id != null && event?.user_id === currentUser?.id));
   const documentFiles = files.filter((f) => f.file_type === 'document');
   const photoFiles = files.filter((f) => f.file_type === 'photo');
 
@@ -221,6 +289,9 @@ export default function EventDetailPage() {
           dict={dict}
           lang={lang}
           id={id}
+          canEdit={canEdit}
+          onEditEvent={() => setIsEditModalOpen(true)}
+          onDeleteEvent={handleDeleteEvent}
         />
 
         {/* 2. Pengaturan Lokasi & Geofencing */}
@@ -231,6 +302,7 @@ export default function EventDetailPage() {
           onUpdateEvent={handleUpdateEvent}
           toggling={togglingLocation}
           dict={dict}
+          canEdit={canEdit}
         />
 
         {/* 3. Notulensi Kegiatan */}
@@ -241,6 +313,7 @@ export default function EventDetailPage() {
           saving={savingNotulensi}
           saved={notulensiSavedStatus}
           dict={dict}
+          canEdit={canEdit}
         />
 
         {/* 4. Dokumen Kegiatan */}
@@ -251,6 +324,7 @@ export default function EventDetailPage() {
           onDelete={handleDeleteFile}
           uploading={uploadingDocs}
           dict={dict}
+          canEdit={canEdit}
         />
 
         {/* 5. Foto Dokumentasi Kegiatan */}
@@ -261,6 +335,7 @@ export default function EventDetailPage() {
           onDelete={handleDeleteFile}
           uploading={uploadingPhotos}
           dict={dict}
+          canEdit={canEdit}
         />
 
         {/* 6. Daftar Peserta Hadir */}
@@ -268,8 +343,25 @@ export default function EventDetailPage() {
           event={event}
           participants={participants}
           dict={dict}
+          canEdit={canEdit}
+          onEditParticipant={handleEditParticipant}
+          onDeleteParticipant={handleDeleteParticipant}
         />
       </div>
+
+      {/* Modal Edit Informasi Event */}
+      <EditEventModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        event={event}
+        currentUser={currentUser}
+        dict={dict}
+        onSaved={(updated) => {
+          setEvent(updated);
+          loadEvent();
+        }}
+      />
     </main>
   );
 }
+
